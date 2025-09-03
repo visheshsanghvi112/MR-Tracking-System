@@ -284,6 +284,7 @@ class SmartMRSheetsManager:
             # Log to main daily log
             success1 = self.log_action(
                 user_id=user_id,
+                action_type="LOCATION_CAPTURE",
                 user_data=user_data,
                 location=address,
                 gps_lat=lat,
@@ -342,6 +343,7 @@ class SmartMRSheetsManager:
         """Log visit entry"""
         return self.log_action(
             user_id=user_id,
+            action_type="VISIT",
             user_data=user_data,
             visit_type=visit_type,
             contact_name=contact_name,
@@ -353,18 +355,102 @@ class SmartMRSheetsManager:
         )
         
     def log_expense(self, user_id: int, expense_type: str, amount: float,
-                   description: str, location: str, gps_lat: float, gps_lon: float):
-        """Log expense entry"""
-        return self.log_action(
-            user_id=user_id,
-            action_type="EXPENSE",
-            expense_type=expense_type,
-            amount=amount,
-            remarks=description,
-            location=location,
-            gps_lat=gps_lat,
-            gps_lon=gps_lon
-        )
+                   description: str, location: str, gps_lat: float, gps_lon: float, expense_data: dict = None):
+        """Log expense entry to dedicated MR_Expenses sheet"""
+        try:
+            from datetime import datetime
+            
+            # Get current timestamp
+            now = datetime.now()
+            timestamp_str = now.strftime("%Y-%m-%d %H:%M:%S")
+            date_str = now.strftime("%Y-%m-%d")
+            time_str = now.strftime("%H:%M:%S")
+            
+            # Get user info
+            from utils import get_mr_name
+            user_name = get_mr_name(user_id)
+            
+            # Prepare expense data for the MR_Expenses sheet
+            if expense_data:
+                # Smart expense with detailed breakdown
+                category_breakdown = {}
+                items_list = []
+                
+                for item in expense_data.get('items', []):
+                    category = item.get('category', 'other')
+                    amount_item = item.get('amount', 0)
+                    description_item = item.get('item', '')
+                    
+                    if category not in category_breakdown:
+                        category_breakdown[category] = 0
+                    category_breakdown[category] += amount_item
+                    
+                    items_list.append(f"{category.title()}: {description_item} (₹{amount_item})")
+                
+                # Create detailed description
+                detailed_description = "; ".join(items_list)
+                category_summary = ", ".join([f"{k.title()}: ₹{v}" for k, v in category_breakdown.items()])
+                
+                # For multiple categories, use "Mixed" as primary type
+                if len(category_breakdown) > 1:
+                    primary_type = "Mixed"
+                else:
+                    primary_type = list(category_breakdown.keys())[0].title()
+                
+            else:
+                # Simple expense
+                detailed_description = description
+                category_summary = f"{expense_type}: ₹{amount}"
+                primary_type = expense_type
+            
+            # Generate session ID
+            session_id = f"session_{user_id}_{date_str}"
+            
+            # Prepare row data for MR_Expenses sheet
+            # Headers: Timestamp, Date, Time, MR_ID, MR_Name, Expense_Type, Amount, Description, 
+            #         Category_Breakdown, Location, GPS_Lat, GPS_Lon, Session_ID, Receipt_URL, 
+            #         Approval_Status, Approved_By, Comments, Created_At, Updated_At
+            expense_row = [
+                timestamp_str,           # Timestamp
+                date_str,               # Date  
+                time_str,               # Time
+                user_id,                # MR_ID
+                user_name,              # MR_Name
+                primary_type,           # Expense_Type
+                amount,                 # Amount
+                detailed_description,   # Description
+                category_summary,       # Category_Breakdown
+                location,               # Location
+                gps_lat,               # GPS_Lat
+                gps_lon,               # GPS_Lon
+                session_id,            # Session_ID
+                "",                    # Receipt_URL (empty for now)
+                "Pending",             # Approval_Status
+                "",                    # Approved_By (empty)
+                f"Smart parsed: {len(expense_data.get('items', []))} items" if expense_data else "Manual entry",  # Comments
+                timestamp_str,         # Created_At
+                timestamp_str          # Updated_At
+            ]
+            
+            # Log to MR_Expenses sheet
+            self.expenses_sheet.append_row(expense_row)
+            
+            # Also log a summary to main sheet for session tracking
+            self.log_action(
+                user_id=user_id,
+                action_type="EXPENSE_LOGGED",
+                remarks=f"Expense logged: {primary_type} Rs{amount}",
+                location=location,
+                gps_lat=gps_lat,
+                gps_lon=gps_lon
+            )
+            
+            logger.info(f"EXPENSE_SAVED: User {user_id} - {primary_type} - Rs{amount} - {len(expense_data.get('items', []))} items")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error logging expense: {e}")
+            return False
         
     def log_session_end(self, user_id: int, location: str, total_entries: int):
         """Log session end event"""
@@ -408,6 +494,130 @@ class SmartMRSheetsManager:
             
         except Exception as e:
             logger.error(f"Error getting daily summary: {e}")
+            return None
+    
+    def get_expense_summary(self, user_id: int, period: str = "today"):
+        """Get expense summary for different periods from MR_Expenses sheet"""
+        try:
+            from datetime import datetime, timedelta
+            
+            today = datetime.now()
+            
+            if period == "today":
+                start_date = today.strftime("%Y-%m-%d")
+                end_date = start_date
+                period_name = "Today"
+            elif period == "month":
+                start_date = today.replace(day=1).strftime("%Y-%m-%d")
+                end_date = today.strftime("%Y-%m-%d")
+                period_name = f"{today.strftime('%B %Y')}"
+            elif period == "week":
+                start_date = (today - timedelta(days=today.weekday())).strftime("%Y-%m-%d")
+                end_date = today.strftime("%Y-%m-%d")
+                period_name = "This Week"
+            else:
+                return None
+            
+            # Get all records from MR_Expenses sheet
+            expense_records_raw = self.expenses_sheet.get_all_records()
+            
+            # Filter expense records for user and date range
+            expense_records = []
+            for record in expense_records_raw:
+                if (str(record.get('MR_ID')) == str(user_id)):
+                    record_date = record.get('Date', '')
+                    if start_date <= record_date <= end_date:
+                        expense_records.append(record)
+            
+            # Calculate totals by category
+            category_totals = {}
+            total_amount = 0
+            expense_items = []
+            
+            for record in expense_records:
+                # Clean amount string - remove currency symbols and commas
+                amount_str = str(record.get('Amount', 0))
+                amount_cleaned = amount_str.replace('₹', '').replace(',', '').strip()
+                try:
+                    amount = float(amount_cleaned) if amount_cleaned else 0.0
+                except ValueError:
+                    amount = 0.0
+                    
+                expense_type = record.get('Expense_Type', 'Other')
+                description = record.get('Description', 'No description')
+                date = record.get('Date', '')
+                time = record.get('Time', '')
+                category_breakdown = record.get('Category_Breakdown', '')
+                
+                total_amount += amount
+                
+                if expense_type not in category_totals:
+                    category_totals[expense_type] = 0
+                category_totals[expense_type] += amount
+                
+                expense_items.append({
+                    'date': date,
+                    'time': time,
+                    'expense_type': expense_type,
+                    'amount': amount,
+                    'description': description,
+                    'category_breakdown': category_breakdown,
+                    'location': record.get('Location', 'Unknown')
+                })
+            
+            # Sort items by date (newest first)
+            expense_items.sort(key=lambda x: (x['date'], x['time']), reverse=True)
+            
+            return {
+                'period': period_name,
+                'total_amount': total_amount,
+                'expense_count': len(expense_records),
+                'category_totals': category_totals,
+                'items': expense_items,
+                'start_date': start_date,
+                'end_date': end_date
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting expense summary for {period}: {e}")
+            return None
+    
+    def get_expense_analytics(self, user_id: int):
+        """Get comprehensive expense analytics"""
+        try:
+            from datetime import datetime, timedelta
+            
+            today = datetime.now()
+            
+            # Get different period summaries
+            today_summary = self.get_expense_summary(user_id, "today")
+            week_summary = self.get_expense_summary(user_id, "week")
+            month_summary = self.get_expense_summary(user_id, "month")
+            
+            # Get top categories this month
+            top_categories = []
+            if month_summary and month_summary['category_totals']:
+                top_categories = sorted(
+                    month_summary['category_totals'].items(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )[:5]  # Top 5 categories
+            
+            # Calculate daily average for the month
+            days_in_month = today.day
+            daily_average = month_summary['total_amount'] / days_in_month if month_summary and days_in_month > 0 else 0
+            
+            return {
+                'today': today_summary,
+                'week': week_summary,
+                'month': month_summary,
+                'top_categories': top_categories,
+                'daily_average': daily_average,
+                'analytics_date': today.strftime("%Y-%m-%d %H:%M")
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting expense analytics: {e}")
             return None
 
 # Global instance

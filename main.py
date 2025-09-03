@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, 
-    filters, ContextTypes
+    filters, ContextTypes, CallbackQueryHandler
 )
 
 # Import MR Bot modules
@@ -58,6 +58,10 @@ class MRBot:
         self.application.add_handler(CommandHandler("start", commands_handler.start_command))
         self.application.add_handler(CommandHandler("location", commands_handler.capture_location_command))
         self.application.add_handler(CommandHandler("visit", commands_handler.log_visit_command))
+        self.application.add_handler(CommandHandler("admin", commands_handler.admin_command))
+        
+        # Add callback query handler for inline keyboards
+        self.application.add_handler(CallbackQueryHandler(commands_handler.handle_callback_query))
         
         # Add message handlers
         self.application.add_handler(MessageHandler(filters.LOCATION, commands_handler.handle_location))
@@ -82,41 +86,27 @@ class MRBot:
         logger.info(f"USER_AUTHORIZED: Processing command for {user_name}")
         
         # Route based on message content
-        if text == "📍 Capture Location":
-            logger.info(f"COMMAND: {user_name} requested location capture")
-            await commands_handler.capture_location_command(update, context)
+        if text == "📍 Share Location":
+            logger.info(f"COMMAND: {user_name} shared location via button")
+            # This is handled by the location handler, not here
+            return
             
-        elif text == "📝 Log Visit":
-            logger.info(f"COMMAND: {user_name} requested visit logging")
-            await commands_handler.log_visit_command(update, context)
-            
-        elif text in ["👨‍⚕️ Doctor Visit", "🏥 Hospital Visit", "🏪 Pharmacy Visit", 
-                     "🏢 Vendor Visit", "📞 Phone Call", "📧 Email Follow-up"]:
-            logger.info(f"VISIT_TYPE_SELECTED: {user_name} selected {text}")
-            await commands_handler.handle_visit_type(update, context, text)
-            
-        elif text == "💰 Log Expense":
-            logger.info(f"COMMAND: {user_name} requested expense logging")
-            await self.handle_expense_command(update, context)
-            
-        elif text == "📍 Refresh Location":
-            logger.info(f"COMMAND: {user_name} requested location refresh")
-            await commands_handler.capture_location_command(update, context)
-            
-        elif text == "📊 View Status":
-            logger.info(f"COMMAND: {user_name} requested status check")
-            await self.handle_status_command(update, context)
-            
-        elif text == "📈 Daily Summary":
-            logger.info(f"COMMAND: {user_name} requested daily summary")
-            await self.handle_summary_command(update, context)
-            
-        elif text == "🔙 Back" or text == "🔙 Back to Main Menu":
+        elif text == "� Back to Menu" or text == "🔙 Back":
             logger.info(f"NAVIGATION: {user_name} went back to main menu")
             await commands_handler.start_command(update, context)
             
         else:
-            # Check if user is in middle of logging a visit
+            # Check if user has a pending visit from callback
+            if await commands_handler.check_and_process_pending_visit(update):
+                logger.info(f"PENDING_VISIT: Processed visit details from {user_name}")
+                return
+            
+            # Check if user has a pending expense from callback
+            if await commands_handler.check_and_process_pending_expense(update):
+                logger.info(f"PENDING_EXPENSE: Processed expense details from {user_name}")
+                return
+            
+            # Check if user is in middle of logging a visit (legacy context approach)
             if context.user_data.get('visit_type'):
                 logger.info(f"VISIT_ENTRY: Processing visit details from {user_name}")
                 await commands_handler.handle_visit_entry(update, context)

@@ -47,7 +47,7 @@ class GeminiMRParser:
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=self.api_key)
-                    self.model = genai.GenerativeModel('gemini-1.5-flash')
+                    self.model = genai.GenerativeModel('gemini-2.5-flash')
                     logger.info("Gemini initialized successfully")
                 except ImportError:
                     logger.warning("google-generativeai package not installed")

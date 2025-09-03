@@ -20,7 +20,7 @@ class MRSession:
         self.gps_coords: Optional[Tuple[float, float]] = None
         self.address: Optional[str] = None
         self.entries_count = 0
-        self.session_duration = 300  # 5 minutes default
+        self.session_duration = 1800  # 30 minutes (1800 seconds) for field work
         
     def capture_location(self, lat: float, lon: float, address: str) -> bool:
         """Capture location and start session timer"""
@@ -98,7 +98,7 @@ class SessionManager:
             
             if success:
                 self.save_sessions()
-                logger.info(f"SESSION_CREATED: Active session for user {mr_id} - 5min duration, max 10 entries")
+                logger.info(f"SESSION_CREATED: Active session for user {mr_id} - 30min duration, max 10 entries")
                 logger.info(f"LOCATION_LOCKED: {address}")
             else:
                 logger.error(f"SESSION_FAILED: Could not create session for user {mr_id}")

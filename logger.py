@@ -36,7 +36,7 @@ def setup_logger(name: str = 'mr_bot', log_file: str = None, level: str = 'INFO'
     # File handler if specified
     if log_file:
         try:
-            file_handler = logging.FileHandler(log_file)
+            file_handler = logging.FileHandler(log_file, encoding='utf-8')
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
         except Exception as e:
