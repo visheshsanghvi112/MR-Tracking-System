@@ -186,5 +186,186 @@ class SessionManager:
         except Exception as e:
             print(f"Error loading sessions: {e}")
 
-# Global session manager instance
+# Enhanced MR Session Manager for API
+class MRSessionManager(SessionManager):
+    """Enhanced session manager with live tracking capabilities"""
+    
+    def __init__(self):
+        super().__init__()
+        self.live_locations = {}  # Real-time location cache
+        self.location_history = {}  # Location history for analytics
+        self.geofences = {}  # Geofenced areas for automatic check-ins
+        
+    def update_live_location(self, mr_id: int, lat: float, lon: float, 
+                           address: str = "", accuracy: float = 0, 
+                           speed: float = 0, heading: float = 0):
+        """Update real-time location with enhanced data"""
+        timestamp = datetime.now().isoformat()
+        
+        location_data = {
+            'mr_id': mr_id,
+            'lat': lat,
+            'lon': lon, 
+            'address': address,
+            'accuracy': accuracy,
+            'speed': speed,
+            'heading': heading,
+            'timestamp': timestamp,
+            'battery_level': None,  # Can be added from mobile app
+            'network_type': None    # Can be added from mobile app
+        }
+        
+        # Update live cache
+        self.live_locations[mr_id] = location_data
+        
+        # Add to history
+        if mr_id not in self.location_history:
+            self.location_history[mr_id] = []
+        self.location_history[mr_id].append(location_data)
+        
+        # Keep only last 100 locations in memory
+        if len(self.location_history[mr_id]) > 100:
+            self.location_history[mr_id] = self.location_history[mr_id][-100:]
+            
+        return True
+        
+    def get_live_location(self, mr_id: int) -> dict:
+        """Get current live location with session status"""
+        base_status = self.get_location_status(mr_id)
+        
+        if mr_id in self.live_locations:
+            live_data = self.live_locations[mr_id]
+            # Check if location is recent (within 5 minutes)
+            location_time = datetime.fromisoformat(live_data['timestamp'].replace('Z', ''))
+            is_recent = (datetime.now() - location_time).total_seconds() < 300
+            
+            return {
+                **base_status,
+                'lat': live_data['lat'],
+                'lon': live_data['lon'],
+                'address': live_data['address'],
+                'accuracy': live_data['accuracy'],
+                'speed': live_data['speed'],
+                'heading': live_data['heading'],
+                'last_update': live_data['timestamp'],
+                'location_fresh': is_recent,
+                'session_start': live_data['timestamp'] if base_status['active'] else None,
+                'last_activity': live_data['timestamp']
+            }
+        else:
+            return {
+                **base_status,
+                'lat': 0,
+                'lon': 0,
+                'address': 'Location not available',
+                'accuracy': 0,
+                'speed': 0, 
+                'heading': 0,
+                'last_update': None,
+                'location_fresh': False,
+                'session_start': None,
+                'last_activity': None
+            }
+            
+    def get_location_trail(self, mr_id: int, hours: int = 8) -> list:
+        """Get location trail for specific time period"""
+        if mr_id not in self.location_history:
+            return []
+            
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        
+        trail = []
+        for location in self.location_history[mr_id]:
+            location_time = datetime.fromisoformat(location['timestamp'].replace('Z', ''))
+            if location_time >= cutoff_time:
+                trail.append(location)
+                
+        return trail
+        
+    def calculate_distance_traveled(self, mr_id: int, hours: int = 8) -> float:
+        """Calculate total distance traveled in specified hours"""
+        trail = self.get_location_trail(mr_id, hours)
+        
+        if len(trail) < 2:
+            return 0.0
+            
+        total_distance = 0
+        for i in range(1, len(trail)):
+            from geopy.distance import geodesic
+            prev_point = (trail[i-1]['lat'], trail[i-1]['lon'])
+            curr_point = (trail[i]['lat'], trail[i]['lon'])
+            
+            distance = geodesic(prev_point, curr_point).kilometers
+            total_distance += distance
+            
+        return round(total_distance, 2)
+        
+    def get_mr_analytics(self, mr_id: int) -> dict:
+        """Get comprehensive MR analytics"""
+        session = self.get_session(mr_id)
+        location_status = self.get_live_location(mr_id)
+        
+        return {
+            'mr_id': mr_id,
+            'session_active': session.is_location_active(),
+            'current_location': {
+                'lat': location_status['lat'],
+                'lon': location_status['lon'],
+                'address': location_status['address'],
+                'last_update': location_status['last_update']
+            },
+            'today_stats': {
+                'distance_traveled': self.calculate_distance_traveled(mr_id, 12),
+                'locations_visited': len(self.get_location_trail(mr_id, 12)),
+                'active_time': self._calculate_active_time(mr_id),
+                'entries_logged': session.entries_count
+            },
+            'performance': {
+                'avg_speed': self._calculate_avg_speed(mr_id),
+                'location_accuracy': location_status['accuracy'],
+                'coverage_area': self._calculate_coverage_area(mr_id)
+            }
+        }
+        
+    def _calculate_active_time(self, mr_id: int) -> float:
+        """Calculate active field time in hours"""
+        trail = self.get_location_trail(mr_id, 12)
+        if len(trail) < 2:
+            return 0.0
+            
+        first_time = datetime.fromisoformat(trail[0]['timestamp'].replace('Z', ''))
+        last_time = datetime.fromisoformat(trail[-1]['timestamp'].replace('Z', ''))
+        
+        return round((last_time - first_time).total_seconds() / 3600, 2)
+        
+    def _calculate_avg_speed(self, mr_id: int) -> float:
+        """Calculate average movement speed"""
+        trail = self.get_location_trail(mr_id, 12)
+        if not trail:
+            return 0.0
+            
+        speeds = [loc['speed'] for loc in trail if loc['speed'] > 0]
+        return round(sum(speeds) / len(speeds), 2) if speeds else 0.0
+        
+    def _calculate_coverage_area(self, mr_id: int) -> dict:
+        """Calculate geographical coverage area"""
+        trail = self.get_location_trail(mr_id, 12)
+        if len(trail) < 2:
+            return {'area_km2': 0, 'bounds': None}
+            
+        lats = [loc['lat'] for loc in trail]
+        lons = [loc['lon'] for loc in trail]
+        
+        return {
+            'area_km2': 0,  # Complex calculation - simplified for now
+            'bounds': {
+                'north': max(lats),
+                'south': min(lats), 
+                'east': max(lons),
+                'west': min(lons)
+            }
+        }
+
+# Global session managers
 session_manager = SessionManager()
+mr_session_manager = MRSessionManager()

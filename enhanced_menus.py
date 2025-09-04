@@ -154,7 +154,9 @@ class MRMenuManager:
     def get_analytics_menu(self) -> InlineKeyboardMarkup:
         """Analytics menu (admin only)"""
         keyboard = [
-            [InlineKeyboardButton("📊 Today's Summary", callback_data="analytics_today"),
+            [InlineKeyboardButton("�️ Live Tracking Map", callback_data="tracking_map"),
+             InlineKeyboardButton("📍 Route Blueprint", callback_data="route_blueprint")],
+            [InlineKeyboardButton("�📊 Today's Summary", callback_data="analytics_today"),
              InlineKeyboardButton("📈 Weekly Report", callback_data="analytics_week")],
             [InlineKeyboardButton("📉 Monthly Stats", callback_data="analytics_month"),
              InlineKeyboardButton("📋 Custom Report", callback_data="analytics_custom")],
