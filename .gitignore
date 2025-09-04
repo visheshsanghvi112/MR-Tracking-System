@@ -3,6 +3,12 @@
 .env.local
 .env.production
 
+# Frontend Environment Variables
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+!frontend/.env.example
+
 # Python
 __pycache__/
 *.py[cod]
@@ -32,6 +38,10 @@ PIPFILE.lock
 pharmagiftapp-*.json
 credentials.json
 service-account*.json
+
+# Configuration files with sensitive data
+config_secrets.py
+smart_sheets_credentials.py
 
 # Logs
 *.log
