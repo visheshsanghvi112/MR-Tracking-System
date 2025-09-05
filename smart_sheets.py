@@ -619,6 +619,171 @@ class SmartMRSheetsManager:
         except Exception as e:
             logger.error(f"Error getting expense analytics: {e}")
             return None
+    
+    def get_all_mrs(self):
+        """Get list of all unique MRs from the sheets"""
+        try:
+            if not self.main_sheet:
+                return []
+                
+            # Get all records
+            records = self.main_sheet.get_all_records()
+            
+            # Extract unique MRs
+            mrs = {}
+            for record in records:
+                mr_id = record.get('MR_ID')
+                mr_name = record.get('MR_Name', f'MR {mr_id}')
+                
+                if mr_id and mr_id not in mrs:
+                    # Get latest location for each MR - correct column mapping
+                    lat = record.get('Location', 0)     # Location column has latitude
+                    lon = record.get('GPS_Lat', 0)      # GPS_Lat column has longitude 
+                    # GPS_Lon column has session_id, not coordinates!
+                    timestamp = record.get('Timestamp', '')
+                    
+                    # Parse coordinates properly
+                    try:
+                        lat = float(lat) if lat and lat != '' else 0
+                        lon = float(lon) if lon and lon != '' else 0
+                    except (ValueError, TypeError):
+                        lat, lon = 0, 0
+                    
+                    mrs[mr_id] = {
+                        'mr_id': str(mr_id),
+                        'name': mr_name,
+                        'status': 'active' if timestamp else 'inactive',
+                        'last_location': {
+                            'lat': float(lat) if lat else 0,
+                            'lng': float(lon) if lon else 0
+                        },
+                        'last_activity': timestamp,
+                        'total_visits': len([r for r in records if r.get('MR_ID') == mr_id])
+                    }
+            
+            return list(mrs.values())
+            
+        except Exception as e:
+            logger.error(f"Error getting MR list: {e}")
+            return []
+    
+    def get_mr_route_data(self, mr_id: str, date: str = None):
+        """Get route/location data for a specific MR on a specific date"""
+        try:
+            if not self.main_sheet:
+                return []
+                
+            records = self.main_sheet.get_all_records()
+            
+            # Filter by MR and date
+            route_data = []
+            for record in records:
+                if str(record.get('MR_ID')) == str(mr_id):
+                    if date and record.get('Date') != date:
+                        continue
+                        
+                    # Correct coordinate mapping based on actual data structure
+                    lat = record.get('Location', 0)     # Location column has latitude
+                    lon = record.get('GPS_Lat', 0)      # GPS_Lat column has longitude
+                    # GPS_Lon column has session_id, not coordinates!
+                    
+                    # Parse coordinates safely
+                    try:
+                        lat = float(lat) if lat and lat != '' else 0
+                        lon = float(lon) if lon and lon != '' else 0
+                    except (ValueError, TypeError):
+                        lat, lon = 0, 0
+                    
+                    if lat and lon:
+                        route_data.append({
+                            'timestamp': record.get('Timestamp', ''),
+                            'lat': float(lat),
+                            'lng': float(lon),
+                            'action': record.get('Action_Type', ''),
+                            'remarks': record.get('Remarks', ''),
+                            'visit_type': record.get('Visit_Type', ''),
+                            'contact_name': record.get('Contact_Name', '')
+                        })
+            
+            # Sort by timestamp
+            route_data.sort(key=lambda x: x['timestamp'])
+            return route_data
+            
+        except Exception as e:
+            logger.error(f"Error getting route data: {e}")
+            return []
+    
+    def get_dashboard_stats(self):
+        """Get dashboard statistics from sheets data"""
+        try:
+            if not self.main_sheet:
+                return None
+                
+            records = self.main_sheet.get_all_records()
+            
+            # Calculate stats
+            unique_mrs = set()
+            today_date = datetime.now().strftime('%Y-%m-%d')
+            active_today = set()
+            total_visits = 0
+            total_distance = 0
+            
+            for record in records:
+                mr_id = record.get('MR_ID')
+                date = record.get('Date', '')
+                
+                if mr_id:
+                    unique_mrs.add(mr_id)
+                    
+                    if date == today_date:
+                        active_today.add(mr_id)
+                        
+                    if record.get('Visit_Type'):
+                        total_visits += 1
+            
+            return {
+                'total_mrs': len(unique_mrs),
+                'active_today': len(active_today),
+                'live_sessions': len(active_today),  # Approximate
+                'avg_distance': round(total_distance / max(len(unique_mrs), 1), 1),
+                'total_visits': total_visits,
+                'total_distance': total_distance
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting dashboard stats: {e}")
+            return None
+    
+    def get_activity_feed(self, limit: int = 10):
+        """Get recent activity feed from sheets"""
+        try:
+            if not self.main_sheet:
+                return []
+                
+            records = self.main_sheet.get_all_records()
+            
+            # Sort by timestamp descending and take latest
+            records.sort(key=lambda x: x.get('Timestamp', ''), reverse=True)
+            
+            activities = []
+            for record in records[:limit]:
+                mr_name = record.get('MR_Name', f"MR {record.get('MR_ID')}")
+                action = record.get('Orders', record.get('Action_Type', 'Activity'))
+                timestamp = record.get('Timestamp', '')
+                
+                activities.append({
+                    'id': f"{record.get('MR_ID')}_{timestamp}",
+                    'mr_name': mr_name,
+                    'action': action,
+                    'timestamp': timestamp,
+                    'location': record.get('Remarks', '')
+                })
+            
+            return activities
+            
+        except Exception as e:
+            logger.error(f"Error getting activity feed: {e}")
+            return []
 
 # Global instance
 smart_sheets = SmartMRSheetsManager()

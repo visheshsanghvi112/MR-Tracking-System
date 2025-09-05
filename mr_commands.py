@@ -1,4 +1,4 @@
-"""
+﻿"""
 MR Commands Handler
 Handles all MR bot commands and workflow logic
 """
@@ -8,11 +8,8 @@ from datetime import datetime
 from typing import Dict, Any
 import logging
 
-from session_manager import session_manager
-from integrated_session_manager import IntegratedSessionManager
-
-# Create integrated session manager globally
-integrated_session_manager = IntegratedSessionManager(session_manager)
+from session_manager import session_manager, mr_session_manager
+# Using existing session managers instead of IntegratedSessionManager
 from smart_sheets import smart_sheets  # Use Smart Sheets Manager
 from location_handler import LocationHandler
 from enhanced_menus import menu_manager  # Import enhanced menu system
@@ -32,8 +29,8 @@ class MRCommandsHandler:
         self.expense_handler = SmartExpenseHandler()  # Initialize smart expense handler
         self.pending_expenses = {}  # Store pending expense confirmations
         
-        # Initialize integrated session manager
-        self.session_manager = integrated_session_manager
+        # Initialize session manager
+        self.session_manager = mr_session_manager
         
         # Initialize enhanced menu system with session manager
         menu_manager.session_manager = self.session_manager
@@ -42,15 +39,11 @@ class MRCommandsHandler:
         """Handle /start command"""
         user_id = update.effective_user.id
         
-        # Check if user is authorized MR
-        if user_id not in config.AUTHORIZED_MR_IDS:
-            await update.message.reply_text(
-                "❌ Access denied. You are not authorized to use this MR Bot."
-            )
-            return
-            
+        # 🌍 MR Bot is now OPEN TO EVERYONE! 
+        # Only admin features are restricted, basic MR functionality is public
+        
         # Check location status and provide appropriate menu
-        status = integrated_session_manager.get_location_status(user_id)
+        status = mr_session_manager.get_location_status(user_id)
         
         if status['active']:
             remaining_mins = status['time_remaining'] // 60
@@ -79,12 +72,7 @@ class MRCommandsHandler:
         """Handle /admin command - admin panel access"""
         user_id = update.effective_user.id
         
-        # Check if user is authorized MR
-        if user_id not in config.AUTHORIZED_MR_IDS:
-            await update.message.reply_text("❌ Access denied.")
-            return
-            
-        # Check if user is admin
+        # Check if user is admin (only admin features are restricted)
         if int(user_id) != config.ADMIN_ID:
             await update.message.reply_text(
                 "❌ **Admin Access Required**\n\n"
@@ -129,7 +117,7 @@ class MRCommandsHandler:
         address = await self.location_handler.get_address(location.latitude, location.longitude)
         
         # Start location session
-        success = integrated_session_manager.capture_location(
+        success = mr_session_manager.capture_location(
             user_id, 
             location.latitude, 
             location.longitude, 
@@ -145,7 +133,9 @@ class MRCommandsHandler:
             }
             
             logger.info(f"LOCATION_SUCCESS: Session created for {user_data.get('first_name', 'Unknown')} ({user_id})")
-            logger.info(f"SESSION_DETAILS: Address={address}, Duration=5min, Max_entries=10")
+            duration_hours = config.LOCATION_SESSION_DURATION // 3600
+            duration_mins = (config.LOCATION_SESSION_DURATION % 3600) // 60
+            logger.info(f"SESSION_DETAILS: Address={address}, Duration={duration_hours}h{duration_mins}m, Max_entries={config.MAX_ENTRIES_PER_SESSION}")
             
             try:
                 self.sheets.log_location_capture(
@@ -180,8 +170,8 @@ class MRCommandsHandler:
         user_id = update.effective_user.id
         
         # Check if can log entry
-        if not session_manager.can_log_entry(user_id):
-            status = session_manager.get_location_status(user_id)
+        if not mr_session_manager.can_log_entry(user_id):
+            status = mr_session_manager.get_location_status(user_id)
             if not status['active']:
                 await update.message.reply_text(
                     "❌ **Location Required**\n\n"
@@ -193,7 +183,7 @@ class MRCommandsHandler:
                 remaining_mins = status['time_remaining'] // 60
                 await update.message.reply_text(
                     "❌ **Entry Limit Reached**\n\n"
-                    f"Maximum 10 entries per session. {remaining_mins}m remaining.\n"
+                    f"Maximum {config.MAX_ENTRIES_PER_SESSION} entries per session. {remaining_mins}m remaining.\n"
                     "Capture new location to continue.",
                     reply_markup=menu_manager.get_location_request_menu()
                 )
@@ -241,7 +231,7 @@ class MRCommandsHandler:
             logger.warning(f"PARSING_FALLBACK: Using simple parsing for user {user_id}")
             
         # Get current location info
-        status = session_manager.get_location_status(user_id)
+        status = mr_session_manager.get_location_status(user_id)
         
         if not status.get('active', False):
             logger.error(f"VISIT_BLOCKED: User {user_id} has no active session")
@@ -274,13 +264,13 @@ class MRCommandsHandler:
         )
         
         if success:
-            session_manager.log_entry(user_id)  # Increment entry count
+            mr_session_manager.log_entry(user_id)  # Increment entry count
             logger.info(f"VISIT_SUCCESS: Visit logged successfully for user {user_id}")
             
             # ENHANCED: Also capture location for route blueprint tracking
             await self._capture_visit_location_data(user_id, visit_type, name, orders, remarks, status)
             
-            remaining = session_manager.get_location_status(user_id)
+            remaining = mr_session_manager.get_location_status(user_id)
             await update.message.reply_text(
                 f"✅ **Visit Logged Successfully!**\n\n"
                 f"👤 {name}\n"
@@ -491,7 +481,7 @@ class MRCommandsHandler:
         user_id = update.effective_user.id
             
         # Get current location info
-        status = session_manager.get_location_status(user_id)
+        status = mr_session_manager.get_location_status(user_id)
         
         if not status.get('active', False):
             logger.error(f"VISIT_BLOCKED: User {user_id} has no active session")
@@ -524,10 +514,10 @@ class MRCommandsHandler:
         )
         
         if success:
-            session_manager.log_entry(user_id)  # Increment entry count
+            mr_session_manager.log_entry(user_id)  # Increment entry count
             logger.info(f"VISIT_SUCCESS: Visit logged successfully for user {user_id}")
             
-            remaining = session_manager.get_location_status(user_id)
+            remaining = mr_session_manager.get_location_status(user_id)
             await update.message.reply_text(
                 f"✅ **{visit_type.title()} Visit Logged!**\n\n"
                 f"👤 {name}\n"
@@ -578,7 +568,7 @@ class MRCommandsHandler:
                 location_type = "clinic"
             
             # Get session ID for tracking
-            session_id = session_manager.get_location_status(user_id).get('session_id', '')
+            session_id = mr_session_manager.get_location_status(user_id).get('session_id', '')
             
             # Prepare location data
             location_data = {
@@ -656,7 +646,7 @@ class MRCommandsHandler:
         user_id_int = int(user_id)
         
         # Check session status
-        if not session_manager.can_log_entry(user_id_int):
+        if not mr_session_manager.can_log_entry(user_id_int):
             await query.edit_message_text(
                 "❌ **Session Expired**\n\n"
                 "Please capture location first to start logging visits.",
@@ -700,7 +690,7 @@ class MRCommandsHandler:
             return
         
         # Check session status for expense logging
-        if not session_manager.can_log_entry(user_id_int):
+        if not mr_session_manager.can_log_entry(user_id_int):
             await query.edit_message_text(
                 "❌ **Session Expired**\n\n"
                 "Please capture location first to start logging expenses.",
@@ -818,7 +808,7 @@ class MRCommandsHandler:
         try:
             # Get location for expense logging
             user_id_int = int(user_id)
-            status = session_manager.get_location_status(user_id_int)
+            status = mr_session_manager.get_location_status(user_id_int)
             
             if not status.get('active', False):
                 return False
@@ -858,7 +848,7 @@ class MRCommandsHandler:
             )
             
             if success:
-                session_manager.log_entry(user_id_int)  # Increment entry count
+                mr_session_manager.log_entry(user_id_int)  # Increment entry count
                 logger.info(f"EXPENSE_SAVED: User {user_id} - Rs{total_amount} - {primary_category}")
             else:
                 logger.error(f"EXPENSE_SAVE_FAILED: User {user_id} - Rs{total_amount}")
@@ -1038,7 +1028,7 @@ class MRCommandsHandler:
         elif action == 'status':
             # Convert user_id to int for session manager
             user_id_int = int(user_id)
-            status = session_manager.get_location_status(user_id_int)
+            status = mr_session_manager.get_location_status(user_id_int)
             if status['active']:
                 remaining_mins = status['time_remaining'] // 60
                 remaining_secs = status['time_remaining'] % 60
@@ -1071,7 +1061,7 @@ class MRCommandsHandler:
         if menu_action == 'main':
             # Convert user_id to int for session manager
             user_id_int = int(user_id)
-            status = session_manager.get_location_status(user_id_int)
+            status = mr_session_manager.get_location_status(user_id_int)
             if status['active']:
                 remaining_mins = status['time_remaining'] // 60
                 remaining_secs = status['time_remaining'] % 60
@@ -1580,7 +1570,7 @@ class MRCommandsHandler:
                     log_size = os.path.getsize(log_file) / 1024  # KB
                 
                 # Get session info
-                active_sessions = len(session_manager.sessions) if hasattr(session_manager, 'sessions') else 0
+                active_sessions = len(mr_session_manager.sessions) if hasattr(session_manager, 'sessions') else 0
                 
                 await query.edit_message_text(
                     f"📊 **System Statistics**\n\n"

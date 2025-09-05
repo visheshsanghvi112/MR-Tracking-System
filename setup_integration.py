@@ -10,8 +10,8 @@ import logging
 # Add current directory to path
 sys.path.append(os.path.dirname(__file__))
 
-from session_manager import session_manager  # Basic session manager
-from integrated_session_manager import IntegratedSessionManager
+from session_manager import session_manager, mr_session_manager  # Session managers
+# Using existing session managers instead of IntegratedSessionManager
 from telegram_api_bridge import telegram_api_bridge
 
 logger = logging.getLogger(__name__)
@@ -33,15 +33,13 @@ async def setup_integration():
         print("   ⚠️  Enhanced API not available")
         print("   🔗 Integration mode: BASIC (fallback)")
     
-    # Create integrated session manager
-    print("\n2. Creating integrated session manager...")
-    integrated_manager = IntegratedSessionManager(session_manager)
+    # Use existing session manager
+    print("\n2. Using existing session manager...")
+    integrated_manager = mr_session_manager
     
     if api_available:
-        integrated_manager.enable_integration()
-        print("   ✅ Enhanced integration enabled")
+        print("   ✅ Enhanced integration available")
     else:
-        integrated_manager.disable_integration()
         print("   ⚠️  Using basic mode only")
     
     # Test location capture

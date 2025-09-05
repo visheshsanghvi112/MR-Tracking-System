@@ -38,6 +38,13 @@ PIPFILE.lock
 pharmagiftapp-*.json
 credentials.json
 service-account*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.ts
+!eslint.config.mjs
+!postcss.config.mjs
+!frontend/public/real_mr_data.json
 
 # Configuration files with sensitive data
 config_secrets.py
@@ -121,3 +128,35 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Frontend build artifacts
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/out/
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Package manager locks (keep package-lock.json but not yarn.lock)
+frontend/yarn.lock
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Documentation snapshots
+*_COMPLETE.md
+*_RESOLVED.md
+*_DIAGNOSIS.md
+
+# Development notes
+DEPLOYMENT_*.md
+FUNCTIONALITY_*.md
+MENU_*.md
+SESSION_*.md
+SMART_*.md
+SUCCESSFUL_*.md
+LOCATION_*.md

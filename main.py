@@ -77,13 +77,8 @@ class MRBot:
         
         logger.info(f"MESSAGE_RECEIVED: User {user_name} ({user_id}) sent: '{text[:50]}...'")
         
-        # Check authorization
-        if user_id not in config.AUTHORIZED_MR_IDS:
-            logger.warning(f"UNAUTHORIZED_ACCESS: User {user_name} ({user_id}) denied access")
-            await update.message.reply_text("❌ Access denied.")
-            return
-            
-        logger.info(f"USER_AUTHORIZED: Processing command for {user_name}")
+        # 🌍 MR Bot is now OPEN TO EVERYONE! No authorization check needed
+        logger.info(f"USER_ACCESS: Processing command for {user_name} (open access)")
         
         # Route based on message content
         if text == "📍 Share Location":

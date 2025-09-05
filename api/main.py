@@ -25,12 +25,14 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Local development
+        "http://localhost:3000",  # React default
+        "http://localhost:8080",  # Vite frontend
+        "http://localhost:5173",  # Vite alternative
         "https://*.vercel.app",   # Vercel deployments
         # Add your custom domain when ready
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -78,33 +80,15 @@ async def health_check():
 
 @app.get("/api/mrs")
 async def get_mr_list(api_key: str = Depends(verify_api_key)):
-    """Get list of authorized MRs"""
+    """Get list of MRs from Google Sheets"""
     try:
-        authorized_ids = getattr(config, 'AUTHORIZED_MR_IDS', [])
-        
-        mr_list = []
-        for mr_id in authorized_ids:
-            # Get actual name from sheets if available
-            mr_name = f"MR {mr_id}"  # Default
-            
-            # Try to get real name from recent sheet entries
-            try:
-                # This would query sheets for actual names
-                # For now, use ID-based names
-                mr_name = f"MR {mr_id}"
-            except:
-                pass
-                
-            mr_list.append({
-                "id": mr_id,
-                "name": mr_name,
-                "status": "active"
-            })
+        # Get real MR data from Google Sheets
+        mrs = sheets_manager.get_all_mrs()
         
         return {
             "success": True,
-            "mrs": mr_list,
-            "count": len(mr_list)
+            "mrs": mrs,
+            "count": len(mrs)
         }
         
     except Exception as e:
@@ -207,53 +191,25 @@ async def export_route_gpx(
 def get_location_points_from_sheets(mr_id: int, date: str) -> List[dict]:
     """Extract location points from Google Sheets for specific MR and date"""
     try:
-        # This will integrate with your actual sheets
-        # For now, return sample data structure
+        # Get real route data from Google Sheets
+        route_data = sheets_manager.get_mr_route_data(str(mr_id), date)
         
-        # Sample data - replace with actual sheet queries
-        sample_points = [
-            {
-                "time": "09:00",
-                "lat": 19.0760,
-                "lng": 72.8777,
-                "type": "start",
-                "location": "Home",
-                "details": "Field session started",
-                "timestamp": f"{date}T09:00:00"
-            },
-            {
-                "time": "09:15",
-                "lat": 19.0780,
-                "lng": 72.8800,
-                "type": "movement",
-                "location": "En Route",
-                "details": "Moving to first location",
-                "timestamp": f"{date}T09:15:00"
-            },
-            {
-                "time": "09:30",
-                "lat": 19.0820,
-                "lng": 72.8850,
-                "type": "visit",
-                "location": "Dr. Sharma Clinic",
-                "details": "Doctor visit completed",
-                "timestamp": f"{date}T09:30:00"
-            },
-            {
-                "time": "10:00",
-                "lat": 19.0880,
-                "lng": 72.8900,
-                "type": "visit",
-                "location": "Apollo Pharmacy",
-                "details": "Pharmacy visit completed",
-                "timestamp": f"{date}T10:00:00"
-            }
-        ]
+        # Convert to expected format
+        location_points = []
+        for point in route_data:
+            location_points.append({
+                "time": point['timestamp'].split(' ')[1] if ' ' in point['timestamp'] else point['timestamp'],
+                "lat": point['lat'],
+                "lng": point['lng'],
+                "type": "visit" if point['visit_type'] else "movement",
+                "location": point['contact_name'] if point['contact_name'] else "Location",
+                "details": point['remarks'],
+                "timestamp": point['timestamp'],
+                "action": point['action'],
+                "visit_type": point['visit_type']
+            })
         
-        # TODO: Replace with actual sheet query
-        # points = sheets_manager.get_location_data(mr_id, date)
-        
-        return sample_points
+        return location_points
         
     except Exception as e:
         print(f"Error getting location points: {e}")
@@ -345,6 +301,59 @@ def generate_gpx_file(points: List[dict], mr_id: int, date: str) -> str:
 </gpx>'''
     
     return gpx_header + gpx_points + gpx_footer
+
+@app.get("/api/dashboard/stats")
+async def get_dashboard_stats(api_key: str = Depends(verify_api_key)):
+    """Get dashboard statistics from Google Sheets"""
+    try:
+        # Get real dashboard stats from Google Sheets
+        stats = sheets_manager.get_dashboard_stats()
+        
+        if not stats:
+            # Fallback if sheets are not available
+            stats = {
+                'total_mrs': 0,
+                'active_today': 0,
+                'live_sessions': 0,
+                'avg_distance': 0,
+                'total_visits': 0,
+                'total_distance': 0
+            }
+        
+        return {
+            "success": True,
+            "stats": stats,
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get dashboard stats: {str(e)}")
+
+@app.get("/api/activity")
+async def get_activity_feed(api_key: str = Depends(verify_api_key)):
+    """Get recent activity feed from Google Sheets"""
+    try:
+        # Get real activity feed from Google Sheets
+        activities = sheets_manager.get_activity_feed(limit=20)
+        
+        return {
+            "success": True,
+            "activities": activities,
+            "count": len(activities),
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get activity feed: {str(e)}")
+        
+        return {
+            "success": True,
+            "activities": activities[:20],  # Return last 20 activities
+            "count": len(activities[:20])
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get activity feed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

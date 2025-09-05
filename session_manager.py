@@ -9,6 +9,9 @@ import json
 import os
 import logging
 
+# Import config for session settings
+from config import LOCATION_SESSION_DURATION, MAX_ENTRIES_PER_SESSION, LOCATION_WARNING_THRESHOLD
+
 logger = logging.getLogger(__name__)
 
 class MRSession:
@@ -20,14 +23,33 @@ class MRSession:
         self.gps_coords: Optional[Tuple[float, float]] = None
         self.address: Optional[str] = None
         self.entries_count = 0
-        self.session_duration = 1800  # 30 minutes (1800 seconds) for field work
+        self.session_duration = LOCATION_SESSION_DURATION  # Use config value
+        self.max_entries = MAX_ENTRIES_PER_SESSION  # Use config value
         
     def capture_location(self, lat: float, lon: float, address: str) -> bool:
-        """Capture location and start session timer"""
-        self.location_captured_at = time.time()
-        self.gps_coords = (lat, lon)
-        self.address = address
-        self.entries_count = 0
+        """Capture location and start/extend session timer"""
+        current_time = time.time()
+        
+        # Check if we have an active session
+        was_active = self.is_location_active()
+        old_entries = self.entries_count
+        
+        if was_active:
+            logger.info(f"SESSION_EXTEND: Extending active session for user {self.mr_id} (had {old_entries} entries)")
+            self.location_captured_at = current_time
+            self.gps_coords = (lat, lon)
+            self.address = address
+            # KEEP existing entries_count - this was the main bug!
+            logger.info(f"SESSION_EXTENDED: Kept {self.entries_count} entries, session time reset")
+        else:
+            # Start new session only if previous expired or never existed
+            logger.info(f"SESSION_NEW: Starting fresh session for user {self.mr_id} (previous had {old_entries} entries)")
+            self.location_captured_at = current_time
+            self.gps_coords = (lat, lon)
+            self.address = address
+            self.entries_count = 0  # Only reset on truly new session
+            logger.info(f"SESSION_FRESH: New session started with 0 entries")
+            
         return True
         
     def is_location_active(self) -> bool:
@@ -48,21 +70,26 @@ class MRSession:
     def needs_warning(self) -> bool:
         """Check if session expiry warning needed"""
         remaining = self.time_remaining()
-        return 0 < remaining <= 60  # Warn in last minute
+        return 0 < remaining <= LOCATION_WARNING_THRESHOLD  # Use config value
         
     def can_log_entry(self) -> bool:
         """Check if entry logging is allowed"""
         return (
             self.is_location_active() and 
-            self.entries_count < 10  # Max 10 entries per session
+            self.entries_count < self.max_entries  # Use dynamic max entries
         )
         
     def log_entry(self) -> bool:
         """Record an entry and increment counter"""
         if self.can_log_entry():
+            old_count = self.entries_count
             self.entries_count += 1
+            logger.info(f"ENTRY_LOGGED: User {self.mr_id} entries: {old_count} → {self.entries_count} (max: {self.max_entries})")
             return True
-        return False
+        else:
+            remaining = self.time_remaining()
+            logger.error(f"ENTRY_BLOCKED: User {self.mr_id} - Active: {self.is_location_active()}, Entries: {self.entries_count}/{self.max_entries}, Time: {remaining}s")
+            return False
         
     def clear_session(self):
         """Clear current location session"""
@@ -98,7 +125,8 @@ class SessionManager:
             
             if success:
                 self.save_sessions()
-                logger.info(f"SESSION_CREATED: Active session for user {mr_id} - 30min duration, max 10 entries")
+                duration_hours = session.session_duration // 3600
+                logger.info(f"SESSION_CREATED: Active session for user {mr_id} - {duration_hours}h duration, max {session.max_entries} entries")
                 logger.info(f"LOCATION_LOCKED: {address}")
             else:
                 logger.error(f"SESSION_FAILED: Could not create session for user {mr_id}")
@@ -126,13 +154,23 @@ class SessionManager:
     def get_location_status(self, mr_id: int) -> Dict:
         """Get current location status for MR"""
         session = self.get_session(mr_id)
-        return {
+        remaining_time = session.time_remaining()
+        
+        status = {
             'active': session.is_location_active(),
-            'time_remaining': session.time_remaining(),
+            'time_remaining': remaining_time,
+            'time_remaining_hours': remaining_time // 3600,
+            'time_remaining_minutes': (remaining_time % 3600) // 60,
             'entries_count': session.entries_count,
+            'max_entries': session.max_entries,
+            'entries_remaining': session.max_entries - session.entries_count,
             'address': session.address,
-            'needs_warning': session.needs_warning()
+            'needs_warning': session.needs_warning(),
+            'gps_coords': session.gps_coords
         }
+        
+        logger.info(f"STATUS_CHECK: User {mr_id} - Active: {status['active']}, Entries: {status['entries_count']}/{status['max_entries']}, Time: {status['time_remaining_hours']}h{status['time_remaining_minutes']}m")
+        return status
         
     def clear_expired_sessions(self):
         """Clean up expired sessions"""
