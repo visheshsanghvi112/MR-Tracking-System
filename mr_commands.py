@@ -152,7 +152,7 @@ class MRCommandsHandler:
             await update.message.reply_text(
                 f"✅ **Location Captured Successfully!**\n\n"
                 f"📍 {address}\n"
-                f"⏰ Session active for 5 minutes\n"
+                f"⏰ Session active for 15 minutes\n"
                 f"📝 You can now log visits & expenses!\n\n"
                 f"🎯 Your field session is ready!",
                 reply_markup=menu_manager.get_active_session_menu(user_id)
@@ -1254,7 +1254,7 @@ class MRCommandsHandler:
 📱 **Step 1: Start Session**
 • Tap "📍 Start Field Session"
 • Share your location when prompted
-• Session activates for 60 minutes
+• Session activates for 15 minutes
 
 📝 **Step 2: Log Activities**
 • Use "📝 Log Visit" for doctor/hospital visits
@@ -1325,7 +1325,7 @@ class MRCommandsHandler:
                 'content': """**Location Session Guide**
 
 🎯 **Session Rules:**
-• 60-minute active duration
+• 15-minute active duration
 • Maximum 10 entries per session
 • GPS accuracy required
 • Auto-expires after time limit
@@ -1408,7 +1408,7 @@ class MRCommandsHandler:
                 'content': """**Common Questions & Answers**
 
 ❓ **Q: Why does my session expire?**
-✅ A: Sessions auto-expire after 60 minutes for data accuracy and to prevent stale location data.
+✅ A: Sessions auto-expire after 15 minutes for data accuracy and to prevent stale location data.
 
 ❓ **Q: Can I log more than 10 entries?**
 ✅ A: Start a new location session to log additional entries. This ensures location accuracy.
@@ -1621,7 +1621,7 @@ class MRCommandsHandler:
                 f"• Admin ID: {config.ADMIN_ID}\n"
                 f"• Authorized Users: {len(config.AUTHORIZED_MR_IDS)}\n"
                 f"• GPS Required: {config.GPS_REQUIRED}\n"
-                f"• Session Duration: 30 minutes\n"
+                f"• Session Duration: 15 minutes\n"
                 f"• Max Entries: 10 per session\n\n"
                 f"🛡️ **Security:**\n"
                 f"• Authentication: ✅ Enabled\n"

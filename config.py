@@ -20,7 +20,7 @@ GOOGLE_SHEETS_CREDENTIALS = os.getenv('GOOGLE_SHEETS_CREDENTIALS', 'pharmagiftap
 MR_SPREADSHEET_ID = os.getenv('MR_SPREADSHEET_ID', '')
 
 # MR Bot Specific Settings
-LOCATION_SESSION_DURATION = int(os.getenv('LOCATION_SESSION_DURATION', '7200'))  # 2 hours (7200 seconds)
+LOCATION_SESSION_DURATION = int(os.getenv('LOCATION_SESSION_DURATION', '900'))  # 15 minutes (900 seconds)
 LOCATION_WARNING_THRESHOLD = 300  # Warn 5 minutes before expiry  
 MAX_ENTRIES_PER_SESSION = 20  # Maximum entries per location session
 

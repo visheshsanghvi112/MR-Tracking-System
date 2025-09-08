@@ -104,7 +104,7 @@ python main.py
 - Real-time field presence verification
 
 ## 🔧 Configuration Options
-- `LOCATION_SESSION_DURATION` - Session timeout (default: 5 minutes)
+- `LOCATION_SESSION_DURATION` - Session timeout (default: 15 minutes)
 - `MAX_ENTRIES_PER_SESSION` - Entry limit (default: 10)
 - `GPS_REQUIRED` - Enforce GPS capture (default: true)
 - `LOG_LEVEL` - Logging level (default: INFO)

@@ -61,7 +61,7 @@ class MRCommandProcessor:
                         return f"""🎯 **Location Session Started**
 
 📍 **Location:** {latitude:.6f}, {longitude:.6f}
-⏰ **Session Duration:** 5 minutes
+⏰ **Session Duration:** 15 minutes
 📝 **Max Entries:** 10 visits/expenses
 
 🏥 **Quick Actions:**

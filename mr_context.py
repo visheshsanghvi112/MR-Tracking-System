@@ -28,7 +28,7 @@ class MRContextEngine:
             "operational_context": {
                 "field_work": "MRs visit doctors, hospitals, pharmacies, vendors across territories",
                 "location_importance": "GPS validation ensures field presence authenticity",
-                "session_management": "5-minute location sessions allow multiple entries per location",
+                "session_management": "15-minute location sessions allow multiple entries per location",
                 "data_integrity": "All entries require active location session for compliance"
             }
         }
