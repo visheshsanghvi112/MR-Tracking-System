@@ -302,6 +302,226 @@ def generate_gpx_file(points: List[dict], mr_id: int, date: str) -> str:
     
     return gpx_header + gpx_points + gpx_footer
 
+@app.get("/api/analytics")
+async def get_analytics_data(
+    period: Optional[str] = "weekly",
+    api_key: str = Depends(verify_api_key)
+):
+    """Get comprehensive analytics data with real GPS coordinates from Google Sheets"""
+    try:
+        # Get all MRs data with real location data
+        all_mrs = sheets_manager.get_all_mrs()
+        
+        # Get all visit records with GPS coordinates
+        visit_records = sheets_manager.get_all_visit_records_with_gps()
+        
+        # Calculate real analytics
+        total_mrs = len(all_mrs)
+        total_visits = len(visit_records)
+        active_mrs = len([mr for mr in all_mrs if mr.get('total_visits', 0) > 0])
+        
+        # Calculate real distances using GPS coordinates
+        total_distance = 0
+        for mr in all_mrs:
+            mr_visits = [v for v in visit_records if v.get('mr_id') == mr.get('mr_id')]
+            if len(mr_visits) > 1:
+                # Sort visits by timestamp
+                mr_visits.sort(key=lambda x: x.get('timestamp', ''))
+                # Calculate distance between consecutive visits
+                for i in range(1, len(mr_visits)):
+                    prev_visit = mr_visits[i-1]
+                    curr_visit = mr_visits[i]
+                    
+                    prev_coords = (prev_visit.get('gps_lat', 0), prev_visit.get('gps_lon', 0))
+                    curr_coords = (curr_visit.get('gps_lat', 0), curr_visit.get('gps_lon', 0))
+                    
+                    if prev_coords[0] and prev_coords[1] and curr_coords[0] and curr_coords[1]:
+                        distance = geodesic(prev_coords, curr_coords).kilometers
+                        total_distance += distance
+        
+        # Calculate realistic efficiency based on visits and coverage
+        avg_efficiency = min(100, (total_visits / max(1, total_mrs) * 15)) if total_mrs > 0 else 0
+        
+        # Get top performers with real distance calculations
+        top_performers = []
+        for mr in all_mrs:
+            mr_visits = [v for v in visit_records if v.get('mr_id') == mr.get('mr_id')]
+            visits_count = len(mr_visits)
+            
+            # Calculate real distance for this MR
+            mr_distance = 0
+            if len(mr_visits) > 1:
+                mr_visits.sort(key=lambda x: x.get('timestamp', ''))
+                for i in range(1, len(mr_visits)):
+                    prev_visit = mr_visits[i-1]
+                    curr_visit = mr_visits[i]
+                    
+                    prev_coords = (prev_visit.get('gps_lat', 0), prev_visit.get('gps_lon', 0))
+                    curr_coords = (curr_visit.get('gps_lat', 0), curr_visit.get('gps_lon', 0))
+                    
+                    if prev_coords[0] and prev_coords[1] and curr_coords[0] and curr_coords[1]:
+                        distance = geodesic(prev_coords, curr_coords).kilometers
+                        mr_distance += distance
+            
+            # Calculate efficiency based on visits and unique locations
+            unique_locations = len(set((v.get('gps_lat', 0), v.get('gps_lon', 0)) for v in mr_visits if v.get('gps_lat') and v.get('gps_lon')))
+            efficiency = min(100, (visits_count * 10) + (unique_locations * 5) + (mr_distance * 2))
+            
+            top_performers.append({
+                'name': mr.get('name', 'Unknown'),
+                'mr_id': mr.get('mr_id', ''),
+                'efficiency': round(efficiency, 1),
+                'visits': visits_count,
+                'distance': round(mr_distance, 1),
+                'team': 'Field Team',
+                'unique_locations': unique_locations
+            })
+        
+        # Sort and rank top performers
+        top_performers.sort(key=lambda x: x['efficiency'], reverse=True)
+        for i, performer in enumerate(top_performers[:5]):
+            performer['rank'] = i + 1
+        
+        # Weekly trend analysis using real data
+        weekly_trend = []
+        from datetime import datetime, timedelta
+        import re
+        
+        # Get data for last 4 weeks
+        now = datetime.now()
+        for week in range(4):
+            week_start = now - timedelta(weeks=4-week)
+            week_end = week_start + timedelta(weeks=1)
+            
+            week_visits = []
+            for v in visit_records:
+                try:
+                    # Parse timestamp safely
+                    timestamp_str = v.get('timestamp', '')
+                    if timestamp_str:
+                        # Handle different timestamp formats
+                        if 'T' in timestamp_str:
+                            visit_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        else:
+                            # Try parsing as simple date format
+                            visit_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        
+                        if week_start <= visit_time < week_end:
+                            week_visits.append(v)
+                except (ValueError, TypeError):
+                    # Skip visits with invalid timestamps
+                    continue
+            week_distance = 0
+            
+            # Calculate week distance
+            for mr in all_mrs:
+                mr_week_visits = [v for v in week_visits if v.get('mr_id') == mr.get('mr_id')]
+                if len(mr_week_visits) > 1:
+                    mr_week_visits.sort(key=lambda x: x.get('timestamp', ''))
+                    for i in range(1, len(mr_week_visits)):
+                        prev_visit = mr_week_visits[i-1]
+                        curr_visit = mr_week_visits[i]
+                        
+                        prev_coords = (prev_visit.get('gps_lat', 0), prev_visit.get('gps_lon', 0))
+                        curr_coords = (curr_visit.get('gps_lat', 0), curr_visit.get('gps_lon', 0))
+                        
+                        if prev_coords[0] and prev_coords[1] and curr_coords[0] and curr_coords[1]:
+                            distance = geodesic(prev_coords, curr_coords).kilometers
+                            week_distance += distance
+            
+            week_efficiency = min(100, len(week_visits) * 8) if week_visits else 0
+            
+            weekly_trend.append({
+                'period': f'Week {week + 1}',
+                'efficiency': round(week_efficiency, 1),
+                'visits': len(week_visits),
+                'distance': round(week_distance, 1)
+            })
+        
+        # Recent activity with real location data
+        recent_activity = []
+        recent_visits = sorted(visit_records, key=lambda x: x.get('timestamp', ''), reverse=True)[:10]
+        
+        for visit in recent_visits:
+            recent_activity.append({
+                'mr_name': visit.get('mr_name', 'Unknown'),
+                'location': visit.get('location', 'Unknown Location'),
+                'timestamp': visit.get('timestamp', ''),
+                'duration': '15 mins',  # Standard session duration
+                'status': 'completed',
+                'gps_coordinates': {
+                    'lat': visit.get('gps_lat', 0),
+                    'lng': visit.get('gps_lon', 0)
+                }
+            })
+        
+        # Performance insights based on real GPS data
+        insights = []
+        
+        if total_visits > 0:
+            avg_distance_per_visit = total_distance / total_visits if total_visits > 0 else 0
+            insights.append({
+                'type': 'success',
+                'title': 'Real Field Coverage',
+                'description': f'Your team has completed {total_visits} visits covering {total_distance:.1f} km with an average of {avg_distance_per_visit:.1f} km per visit.',
+                'icon': 'trending-up'
+            })
+        
+        if total_mrs > 1:
+            insights.append({
+                'type': 'info',
+                'title': 'Active Field Team',
+                'description': f'{active_mrs} out of {total_mrs} representatives are actively conducting field visits.',
+                'icon': 'users'
+            })
+        
+        # Coverage efficiency insight
+        coverage_efficiency = (total_distance / max(1, total_visits)) * 10
+        if coverage_efficiency > 30:
+            insights.append({
+                'type': 'warning',
+                'title': 'Route Optimization Opportunity',
+                'description': f'Average distance per visit is {coverage_efficiency/10:.1f} km. Consider route optimization for better efficiency.',
+                'icon': 'activity'
+            })
+        else:
+            insights.append({
+                'type': 'success',
+                'title': 'Efficient Route Coverage',
+                'description': f'Great route efficiency with {coverage_efficiency/10:.1f} km average distance per visit.',
+                'icon': 'award'
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "overview": {
+                    "total_mrs": total_mrs,
+                    "active_mrs": active_mrs,
+                    "total_visits": total_visits,
+                    "avg_efficiency": round(avg_efficiency, 1),
+                    "total_distance": round(total_distance, 1)
+                },
+                "top_performers": top_performers[:5],
+                "weekly_trend": weekly_trend,
+                "insights": insights,
+                "recent_activity": recent_activity,
+                "team_performance": [
+                    {
+                        "team": "Field Team",
+                        "members": total_mrs,
+                        "avg_efficiency": round(avg_efficiency, 1),
+                        "total_visits": total_visits,
+                        "total_distance": round(total_distance, 1)
+                    }
+                ]
+            },
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics data: {str(e)}")
+
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats(api_key: str = Depends(verify_api_key)):
     """Get dashboard statistics from Google Sheets"""
