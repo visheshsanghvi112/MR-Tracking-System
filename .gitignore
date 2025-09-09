@@ -9,6 +9,11 @@ frontend/.env.local
 frontend/.env.production
 !frontend/.env.example
 
+# Test Files (Don't track these!)
+test_*.py
+*_test.py
+test*.py
+
 # Python
 __pycache__/
 *.py[cod]
