@@ -10,7 +10,17 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # Load environment from mr_bot directory
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+# Try multiple possible .env file locations
+env_paths = [
+    os.path.join(os.path.dirname(__file__), '.env'),  # Same directory as config.py
+    os.path.join(os.path.dirname(__file__), '..', '.env'),  # Parent directory
+    '.env'  # Current working directory
+]
+
+for env_path in env_paths:
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        break
 
 # Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN = os.getenv('MR_BOT_TOKEN', '')
