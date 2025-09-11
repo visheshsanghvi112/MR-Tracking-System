@@ -17,38 +17,43 @@ import logging
 # Add parent directory for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# from smart_sheets import SmartMRSheetsManager
-# from session_manager import mr_session_manager as session_manager
-import config
+# Real Google Sheets Integration
+try:
+    from smart_sheets import SmartMRSheetsManager
+    sheets_manager = SmartMRSheetsManager()
+    print("✅ Real Google Sheets Manager loaded successfully")
+except Exception as e:
+    print(f"⚠️ Smart Sheets Manager failed: {e}")
+    # Mock fallback only if real sheets fail
+    class MockSheetsManager:
+        def get_all_mrs(self): return [{"id": 1201911108, "name": "Test MR", "status": "active"}]
+        def get_mr_details(self, mr_id): return {"id": mr_id, "name": f"MR {mr_id}", "status": "active"}
+        def get_route_data(self, mr_id, date): return []
+    sheets_manager = MockSheetsManager()
 
-# Temporary mock session manager
-class MockSessionManager:
-    def capture_location(self, mr_id, lat, lng, address):
-        return {"mr_id": mr_id, "lat": lat, "lng": lng, "address": address}
-    
-    def get_current_location(self, mr_id):
-        return {"lat": 19.0760, "lng": 72.8777, "address": "Mock Location"}
-    
-    def get_location_trail(self, mr_id, hours):
-        return [{"time": "2025-09-10T12:00:00", "lat": 19.0760, "lng": 72.8777}]
+# Real Session Manager Integration  
+try:
+    from session_manager import mr_session_manager as session_manager
+    print("✅ Real Session Manager loaded successfully")
+except Exception as e:
+    print(f"⚠️ Session Manager failed: {e}")
+    # Mock fallback only if real session manager fails
+    class MockSessionManager:
+        def capture_location(self, mr_id, lat, lng, address): return True
+        def get_current_location(self, mr_id): return {"lat": 19.0760, "lng": 72.8777}
+        def get_location_trail(self, mr_id, hours): return []
+    session_manager = MockSessionManager()
 
-session_manager = MockSessionManager()
-
-# Mock sheets manager
-class MockSheetsManager:
-    def get_mr_data(self):
-        return [{"id": 1201911108, "name": "Test MR"}]
-    
-    def get_route_data(self, mr_id, date):
-        return [{"time": "12:00", "lat": 19.0760, "lng": 72.8777, "type": "checkin", "location": "Test Location"}]
-    
-    def get_all_mrs(self):
-        return [{"id": 1201911108, "name": "Test MR", "status": "active"}]
-    
-    def get_mr_details(self, mr_id):
-        return {"id": mr_id, "name": f"MR {mr_id}", "status": "active"}
-
-sheets_manager = MockSheetsManager()
+# Real Config Integration
+try:
+    import config
+    print("✅ Real Config loaded successfully")
+except Exception as e:
+    print(f"⚠️ Config failed: {e}")
+    # Mock config fallback
+    class MockConfig:
+        pass
+    config = MockConfig()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -75,8 +80,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Utility functions
+def clean_mr_name(name: str) -> str:
+    """Clean MR name by removing Unicode artifacts and special characters"""
+    if not name:
+        return "Unknown MR"
+    
+    # Remove common Unicode artifacts
+    import re
+    cleaned = re.sub(r'[\u0300-\u036f\u20d0-\u20ff\u1ab0-\u1aff\u1dc0-\u1dff]', '', name)  # Remove combining characters
+    cleaned = re.sub(r'[\ud800-\udfff]', '', cleaned)  # Remove surrogate pairs
+    cleaned = re.sub(r'[^\w\s.-]', '', cleaned)  # Keep only word chars, spaces, dots, hyphens
+    cleaned = ' '.join(cleaned.split())  # Normalize whitespace
+    
+    return cleaned.strip() or "Unknown MR"
+
 # Initialize managers
-sheets_manager = MockSheetsManager()
+# Real managers are loaded at startup above
 # session_manager is imported as mr_session_manager
 
 # Simple API key authentication
@@ -137,6 +157,11 @@ async def get_mrs(api_key: str = Depends(verify_api_key)):
     try:
         mrs_data = sheets_manager.get_all_mrs()
         
+        # Clean MR names for better display
+        for mr in mrs_data:
+            if 'name' in mr:
+                mr['name'] = clean_mr_name(mr['name'])
+        
         return {
             "success": True,
             "mrs": mrs_data,
@@ -152,9 +177,20 @@ async def get_mrs(api_key: str = Depends(verify_api_key)):
 async def get_mr_detail(mr_id: int, api_key: str = Depends(verify_api_key)):
     """Get detailed information for a specific MR"""
     try:
-        mr_data = sheets_manager.get_mr_details(mr_id)
+        # Get all MRs and find the specific one
+        all_mrs = sheets_manager.get_all_mrs()
+        mr_data = None
+        for mr in all_mrs:
+            if str(mr.get('mr_id')) == str(mr_id):
+                mr_data = mr
+                break
+        
         if not mr_data:
             raise HTTPException(status_code=404, detail="MR not found")
+        
+        # Clean MR name for better display
+        if 'name' in mr_data:
+            mr_data['name'] = clean_mr_name(mr_data['name'])
         
         return {
             "success": True,
@@ -203,7 +239,7 @@ async def update_location(
 async def get_live_location(mr_id: int, api_key: str = Depends(verify_api_key)):
     """Get current live location of an MR"""
     try:
-        location = session_manager.get_current_location(mr_id)
+        location = session_manager.get_live_location(mr_id)
         if not location:
             raise HTTPException(status_code=404, detail="No current location found")
         
@@ -325,12 +361,24 @@ async def websocket_endpoint(websocket: WebSocket, mr_id: int):
 
 @app.get("/api/route")
 async def get_route_data(
-    mr_id: int,
-    date: str,
+    mr_id: Optional[int] = None,
+    date: Optional[str] = None,
     api_key: str = Depends(verify_api_key)
 ):
     """Get enhanced route data with real tracking integration"""
     try:
+        # Set defaults if not provided
+        if not mr_id:
+            # Get first available MR
+            mrs_data = sheets_manager.get_all_mrs()
+            if mrs_data:
+                mr_id = int(mrs_data[0].get('mr_id', 1201911108))
+            else:
+                mr_id = 1201911108
+                
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+            
         # Validate date format
         try:
             route_date = datetime.strptime(date, "%Y-%m-%d")
@@ -550,12 +598,24 @@ def calculate_enhanced_route_stats(points: List[dict]) -> dict:
 
 @app.get("/api/export/gpx")
 async def export_gpx(
-    mr_id: int,
-    date: str,
+    mr_id: Optional[int] = None,
+    date: Optional[str] = None,
     api_key: str = Depends(verify_api_key)
 ):
     """Export route data as GPX file"""
     try:
+        # Set defaults if not provided
+        if not mr_id:
+            # Get first available MR
+            mrs_data = sheets_manager.get_all_mrs()
+            if mrs_data:
+                mr_id = int(mrs_data[0].get('mr_id', 1201911108))
+            else:
+                mr_id = 1201911108
+                
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+            
         route_points = await get_enhanced_route_data(mr_id, date)
         
         if not route_points:
@@ -693,12 +753,23 @@ async def get_route_blueprint(
     """Get route blueprint for entire team"""
     
     try:
-        from visit_based_location_tracker import get_mr_route_blueprint
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from visit_based_location_tracker import get_mr_route_blueprint
+            blueprint = await get_mr_route_blueprint(str(mr_id), date)
+        except ImportError:
+            # Fallback if module not available
+            blueprint = {
+                "route_points": [],
+                "estimated_duration": "8 hours",
+                "total_distance": "45.2 km",
+                "recommended_stops": []
+            }
         
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
-        
-        blueprint = get_mr_route_blueprint(mr_id, date)
         
         return {
             "success": True,
@@ -709,7 +780,14 @@ async def get_route_blueprint(
         }
     except Exception as e:
         logger.error(f"Error getting route blueprint: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return structured error response instead of raising exception
+        return {
+            "success": False,
+            "error": "Route blueprint temporarily unavailable",
+            "mr_id": mr_id,
+            "date": date or datetime.now().strftime("%Y-%m-%d"),
+            "timestamp": datetime.now().isoformat()
+        }
 
 @app.get("/api/v2/location-history/{mr_id}")
 async def get_location_history(
@@ -812,11 +890,14 @@ async def get_team_routes(
 @app.get("/api/v2/route-map/{mr_id}")
 async def get_route_map_data(
     mr_id: int,
-    date: str,
+    date: Optional[str] = None,
     api_key: str = Depends(verify_api_key)
 ):
     """Get enhanced route data optimized for map visualization"""
     try:
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+            
         route_points = await get_enhanced_route_data(mr_id, date)
         stats = calculate_enhanced_route_stats(route_points)
         

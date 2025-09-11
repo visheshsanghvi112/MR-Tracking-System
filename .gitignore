@@ -38,6 +38,14 @@ share/python-wheels/
 *.egg
 PIPFILE.lock
 
+# Database
+*.db
+
+# Node/Frontend
+bun.lockb
+*.lock
+frontend/node_modules/
+
 # Google Credentials
 *.json
 pharmagiftapp-*.json
