@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend API Integration Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🧪 MR Tracking Frontend API Integration Test</h1>
+    <p>This page tests the frontend API client against the real backend.</p>
+    
+    <button onclick="runTests()">🚀 Run All Tests</button>
+    <button onclick="clearResults()">🧹 Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const API_KEY = 'mr-tracking-2025';
+
+        let testResults = [];
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            testResults = [];
+        }
+
+        async function testEndpoint(name, url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'X-API-Key': API_KEY,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ ${name}: SUCCESS (${response.status})`, 'pass');
+                    if (options.showData) {
+                        log(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'info');
+                    }
+                    testResults.push({ test: name, status: 'pass', data });
+                    return data;
+                } else {
+                    log(`❌ ${name}: FAILED (${response.status}) - ${JSON.stringify(data)}`, 'fail');
+                    testResults.push({ test: name, status: 'fail', error: data });
+                    return null;
+                }
+            } catch (error) {
+                log(`❌ ${name}: ERROR - ${error.message}`, 'fail');
+                testResults.push({ test: name, status: 'error', error: error.message });
+                return null;
+            }
+        }
+
+        async function runTests() {
+            clearResults();
+            log('🚀 Starting Frontend API Integration Tests...', 'info');
+
+            // Test 1: Health Check
+            await testEndpoint('Health Check', `${API_BASE}/`);
+
+            // Test 2: Get MRs (Critical for frontend)
+            const mrsData = await testEndpoint('Get MRs', `${API_BASE}/api/mrs`, { showData: true });
+
+            if (mrsData && mrsData.mrs && mrsData.mrs.length > 0) {
+                const firstMR = mrsData.mrs[0];
+                const mrId = firstMR.mr_id;
+
+                // Test 3: Get MR Detail
+                await testEndpoint(`Get MR Detail (${mrId})`, `${API_BASE}/api/mrs/${mrId}`);
+
+                // Test 4: Get Live Location
+                await testEndpoint(`Get Live Location (${mrId})`, `${API_BASE}/api/location/live/${mrId}`);
+
+                // Test 5: Get Route Data (with parameters)
+                const today = new Date().toISOString().split('T')[0];
+                await testEndpoint(`Get Route Data (${mrId})`, `${API_BASE}/api/route?mr_id=${mrId}&date=${today}`);
+
+                // Test 6: Location Update (POST)
+                await testEndpoint('Update Location', `${API_BASE}/api/location/update?mr_id=${mrId}&lat=19.0760&lng=72.8777&address=Test%20Location`, {
+                    method: 'POST'
+                });
+            } else {
+                log('⚠️ No MR data available, skipping dependent tests', 'info');
+            }
+
+            // Test 7: Analytics Dashboard
+            await testEndpoint('Dashboard Analytics', `${API_BASE}/api/analytics`, { showData: true });
+
+            // Test 8: Activity Feed
+            await testEndpoint('Activity Feed', `${API_BASE}/api/activity`);
+
+            // Test 9: Dashboard Stats
+            await testEndpoint('Dashboard Stats', `${API_BASE}/api/dashboard/stats`);
+
+            // Summary
+            const passed = testResults.filter(r => r.status === 'pass').length;
+            const failed = testResults.filter(r => r.status !== 'pass').length;
+            const total = testResults.length;
+
+            log(`<br/><strong>📊 Test Summary:</strong><br/>
+                 ✅ Passed: ${passed}<br/>
+                 ❌ Failed: ${failed}<br/>
+                 🎯 Success Rate: ${((passed / total) * 100).toFixed(1)}%`, 'info');
+
+            if (passed === total) {
+                log('🎉 All tests passed! Frontend-Backend integration is working perfectly!', 'pass');
+            } else {
+                log('⚠️ Some tests failed. Check the results above for details.', 'fail');
+            }
+        }
+
+        // Auto-run tests on page load if API server is detected
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_BASE}/`, { 
+                    headers: { 'X-API-Key': API_KEY } 
+                });
+                if (response.ok) {
+                    log('✅ API Server detected. Ready to test!', 'pass');
+                } else {
+                    log('⚠️ API Server responded but with error. Check if server is properly configured.', 'fail');
+                }
+            } catch (error) {
+                log('❌ Cannot connect to API server. Make sure it\'s running on http://localhost:8000', 'fail');
+                log('💡 Start the API server first: cd api && python main.py', 'info');
+            }
+        });
+    </script>
+</body>
+</html>
