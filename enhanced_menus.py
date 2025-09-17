@@ -29,8 +29,9 @@ class MRMenuManager:
         """Simplified menu for regular users"""
         keyboard = [
             [InlineKeyboardButton("📍 Start Field Session", callback_data="quick_location")],
-            [InlineKeyboardButton("📊 View Status", callback_data="quick_status")],
-            [InlineKeyboardButton("❓ Help", callback_data="help_main")]
+            [InlineKeyboardButton("📊 My Status", callback_data="quick_status"),
+             InlineKeyboardButton("💰 My Expenses", callback_data="menu_expense_view")],
+            [InlineKeyboardButton("❓ Help & Support", callback_data="help_main")]
         ]
         return InlineKeyboardMarkup(keyboard)
     
@@ -61,68 +62,63 @@ class MRMenuManager:
         return InlineKeyboardMarkup(keyboard)
     
     def get_active_session_menu(self, user_id: str) -> InlineKeyboardMarkup:
-        """Enhanced menu for active session with role-based options"""
+        """Simplified menu for active session"""
         # Check if user is admin
         is_admin = int(user_id) == config.ADMIN_ID
         
+        # Core actions for everyone
+        keyboard = [
+            # Main actions - bigger buttons, clearer labels
+            [InlineKeyboardButton("🏥 Log Doctor Visit", callback_data="menu_visit_types")],
+            [InlineKeyboardButton("💰 Add Expense", callback_data="menu_expense_types")],
+            
+            # Quick actions
+            [InlineKeyboardButton("📊 Session Status", callback_data="quick_status"),
+             InlineKeyboardButton("💸 View Expenses", callback_data="menu_expense_view")],
+        ]
+        
+        # Add admin features if admin
         if is_admin:
-            keyboard = [
-                # Primary actions
-                [InlineKeyboardButton("📝 Log Visit", callback_data="menu_visit_types"),
-                 InlineKeyboardButton("💰 Log Expense", callback_data="menu_expense_types")],
-                
-                # Session management
-                [InlineKeyboardButton("📍 Refresh Location", callback_data="quick_location"),
-                 InlineKeyboardButton("� My Expenses", callback_data="menu_expense_view")],
-                 
-                # Admin features
-                [InlineKeyboardButton("📈 Analytics", callback_data="analytics_daily"),
-                 InlineKeyboardButton("⚙️ Admin Panel", callback_data="admin_panel")],
-                
-                # Navigation
-                [InlineKeyboardButton("❓ Help", callback_data="help_main")]
-            ]
-        else:
-            # Simplified menu for regular users
-            keyboard = [
-                # Primary actions
-                [InlineKeyboardButton("📝 Log Visit", callback_data="menu_visit_types"),
-                 InlineKeyboardButton("💰 Log Expense", callback_data="menu_expense_types")],
-                
-                # Session management
-                [InlineKeyboardButton("📍 Refresh Location", callback_data="quick_location"),
-                 InlineKeyboardButton("� My Expenses", callback_data="menu_expense_view")],
-                
-                # Navigation
-                [InlineKeyboardButton("❓ Help", callback_data="help_main")]
-            ]
+            keyboard.append([InlineKeyboardButton("📈 Analytics", callback_data="analytics_daily"),
+                           InlineKeyboardButton("⚙️ Admin", callback_data="admin_panel")])
+        
+        # Help at bottom
+        keyboard.append([InlineKeyboardButton("❓ Help", callback_data="help_main")])
         
         return InlineKeyboardMarkup(keyboard)
     
     def get_visit_types_menu(self) -> InlineKeyboardMarkup:
-        """Menu for selecting visit type"""
+        """Simplified menu for selecting visit type"""
         keyboard = [
-            [InlineKeyboardButton("👨‍⚕️ Doctor Visit", callback_data="visit_doctor"),
-             InlineKeyboardButton("🏥 Hospital Visit", callback_data="visit_hospital")],
-            [InlineKeyboardButton("🏪 Pharmacy Visit", callback_data="visit_pharmacy"),
-             InlineKeyboardButton("🏢 Vendor Visit", callback_data="visit_vendor")],
+            # Most common visit types first
+            [InlineKeyboardButton("👨‍⚕️ Doctor Visit", callback_data="visit_doctor")],
+            [InlineKeyboardButton("🏥 Hospital Visit", callback_data="visit_hospital")],
+            [InlineKeyboardButton("🏪 Pharmacy Visit", callback_data="visit_pharmacy")],
+            
+            # Less common options
             [InlineKeyboardButton("📞 Phone Call", callback_data="visit_phone"),
-             InlineKeyboardButton("📧 Email Follow-up", callback_data="visit_email")],
+             InlineKeyboardButton("🏢 Other Visit", callback_data="visit_other")],
+            
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")]
         ]
         return InlineKeyboardMarkup(keyboard)
     
     def get_expense_types_menu(self) -> InlineKeyboardMarkup:
-        """Menu for selecting expense type"""
+        """Simplified menu for selecting expense type"""
         keyboard = [
-            [InlineKeyboardButton("🚀 Bulk Entry (All-in-One)", callback_data="expense_bulk")],
+            # Highlight the smart bulk entry option
+            [InlineKeyboardButton("🚀 Smart Entry (Recommended)", callback_data="expense_bulk")],
+            
+            # Most common expenses
             [InlineKeyboardButton("⛽ Fuel", callback_data="expense_fuel"),
-             InlineKeyboardButton("🍽️ Food", callback_data="expense_food")],
-            [InlineKeyboardButton("🏨 Stay", callback_data="expense_stay"),
-             InlineKeyboardButton("🚗 Transport", callback_data="expense_transport")],
-            [InlineKeyboardButton("📞 Phone/Internet", callback_data="expense_phone"),
-             InlineKeyboardButton("🎁 Client Gift", callback_data="expense_gift")],
-            [InlineKeyboardButton("📋 Other", callback_data="expense_other")],
+             InlineKeyboardButton("🍽️ Meals", callback_data="expense_food")],
+            [InlineKeyboardButton("🚗 Travel", callback_data="expense_transport"),
+             InlineKeyboardButton("🏨 Stay", callback_data="expense_stay")],
+            
+            # Other options
+            [InlineKeyboardButton("📞 Communication", callback_data="expense_phone"),
+             InlineKeyboardButton("📋 Other", callback_data="expense_other")],
+            
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu_main")]
         ]
         return InlineKeyboardMarkup(keyboard)

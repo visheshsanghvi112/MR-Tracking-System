@@ -1151,37 +1151,231 @@ class MRCommandsHandler:
             )
     
     async def _handle_analytics_callback(self, query, user_id: str, data: str):
-        """Handle analytics-related callbacks"""
+        """Handle analytics-related callbacks with real data"""
         analytics_type = data.replace('analytics_', '')
         
-        if analytics_type == 'daily':
+        try:
+            # Get real analytics data from sheets
+            if analytics_type == 'daily' or analytics_type == 'today':
+                analytics_data = await self._get_daily_analytics(user_id)
+                
+                await query.edit_message_text(
+                    f"📊 **Today's Analytics**\n\n"
+                    f"📅 **Date:** {analytics_data['date']}\n\n"
+                    f"🏥 **Visits:** {analytics_data['visits_count']}\n"
+                    f"💰 **Expenses:** ₹{analytics_data['total_expenses']:.2f}\n"
+                    f"📍 **Locations:** {analytics_data['unique_locations']}\n"
+                    f"⏱️ **Active Time:** {analytics_data['active_time']}\n\n"
+                    f"🎯 **Top Activity:** {analytics_data['top_activity']}\n"
+                    f"📈 **Performance:** {analytics_data['performance_score']}/10",
+                    reply_markup=menu_manager.get_analytics_menu()
+                )
+                
+            elif analytics_type == 'week':
+                analytics_data = await self._get_weekly_analytics(user_id)
+                
+                await query.edit_message_text(
+                    f"📅 **Weekly Analytics**\n\n"
+                    f"📊 **Total Visits:** {analytics_data['total_visits']}\n"
+                    f"💸 **Total Expenses:** ₹{analytics_data['total_expenses']:.2f}\n"
+                    f"📈 **Daily Average:** {analytics_data['daily_average']:.1f} visits\n"
+                    f"🎯 **Best Day:** {analytics_data['best_day']}\n"
+                    f"📍 **Coverage:** {analytics_data['locations_covered']} locations\n\n"
+                    f"🏆 **Week Performance:** {analytics_data['week_score']}/10\n"
+                    f"📊 **Trend:** {analytics_data['trend']}",
+                    reply_markup=menu_manager.get_analytics_menu()
+                )
+                
+            elif analytics_type == 'month':
+                analytics_data = await self._get_monthly_analytics(user_id)
+                
+                await query.edit_message_text(
+                    f"📉 **Monthly Analytics**\n\n"
+                    f"📊 **Total Visits:** {analytics_data['total_visits']}\n"
+                    f"💰 **Total Expenses:** ₹{analytics_data['total_expenses']:.2f}\n"
+                    f"📈 **Monthly Growth:** {analytics_data['growth_rate']}%\n"
+                    f"🎯 **Goal Progress:** {analytics_data['goal_progress']}%\n"
+                    f"🏥 **Top Doctor:** {analytics_data['top_doctor']}\n"
+                    f"💊 **Top Product:** {analytics_data['top_product']}\n\n"
+                    f"🏆 **Month Rating:** {analytics_data['month_score']}/10",
+                    reply_markup=menu_manager.get_analytics_menu()
+                )
+                
+            else:
+                await query.edit_message_text(
+                    f"📊 **Analytics Dashboard**\n\n"
+                    "Select the type of analytics you want to view:",
+                    reply_markup=menu_manager.get_analytics_menu()
+                )
+                
+        except Exception as e:
+            logger.error(f"Analytics callback error: {e}")
             await query.edit_message_text(
-                "📊 **Daily Analytics**\n\n"
-                "📅 Today's Performance Summary:\n\n"
-                "🏥 Visits: Processing...\n"
-                "💰 Expenses: Calculating...\n"
-                "📍 Locations: Analyzing...\n\n"
-                "⏳ Generating detailed report...",
+                "❌ **Analytics Error**\n\n"
+                "Unable to generate analytics at the moment.\n"
+                "Please try again later or contact support.",
                 reply_markup=menu_manager.get_analytics_menu()
             )
-        elif analytics_type == 'weekly':
-            await query.edit_message_text(
-                "📅 **Weekly Analytics**\n\n"
-                "📈 Week's Performance Overview:\n\n"
-                "📊 Total Visits: Computing...\n"
-                "💸 Total Expenses: Summing...\n"
-                "🎯 Goals Progress: Evaluating...\n\n"
-                "⏳ Preparing comprehensive report...",
-                reply_markup=menu_manager.get_analytics_menu()
-            )
-        else:
-            await query.edit_message_text(
-                f"📊 **{analytics_type.title()} Analytics**\n\n"
-                "🔄 Generating detailed analytics...\n"
-                "📈 Processing your data...\n\n"
-                "(Advanced analytics features will be enhanced soon)",
-                reply_markup=menu_manager.get_analytics_menu()
-            )
+    
+    async def _get_daily_analytics(self, user_id: str) -> dict:
+        """Get daily analytics data"""
+        try:
+            from datetime import datetime, timedelta
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            # Get data from sheets
+            visits_data = self.sheets.get_daily_visits(user_id, today)
+            expenses_data = self.sheets.get_daily_expenses(user_id, today)
+            
+            # Calculate metrics
+            visits_count = len(visits_data) if visits_data else 0
+            total_expenses = sum(float(exp.get('amount', 0)) for exp in expenses_data) if expenses_data else 0
+            unique_locations = len(set(visit.get('location', '') for visit in visits_data)) if visits_data else 0
+            
+            # Calculate performance score (simple algorithm)
+            performance_score = min(10, (visits_count * 2) + (1 if total_expenses < 1000 else 0) + (unique_locations * 1))
+            
+            return {
+                'date': today,
+                'visits_count': visits_count,
+                'total_expenses': total_expenses,
+                'unique_locations': unique_locations,
+                'active_time': f"{visits_count * 30}min" if visits_count > 0 else "0min",
+                'top_activity': 'Doctor Visits' if visits_count > 0 else 'No Activity',
+                'performance_score': performance_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Daily analytics error: {e}")
+            return {
+                'date': datetime.now().strftime('%Y-%m-%d'),
+                'visits_count': 0,
+                'total_expenses': 0.0,
+                'unique_locations': 0,
+                'active_time': '0min',
+                'top_activity': 'No Activity',
+                'performance_score': 0
+            }
+    
+    async def _get_weekly_analytics(self, user_id: str) -> dict:
+        """Get weekly analytics data"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # Get last 7 days data
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=7)
+            
+            visits_data = self.sheets.get_visits_range(user_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+            expenses_data = self.sheets.get_expenses_range(user_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+            
+            total_visits = len(visits_data) if visits_data else 0
+            total_expenses = sum(float(exp.get('amount', 0)) for exp in expenses_data) if expenses_data else 0
+            daily_average = total_visits / 7
+            
+            # Find best day
+            daily_counts = {}
+            for visit in visits_data or []:
+                date = visit.get('timestamp', '')[:10]  # Get date part
+                daily_counts[date] = daily_counts.get(date, 0) + 1
+            
+            best_day = max(daily_counts.items(), key=lambda x: x[1])[0] if daily_counts else 'No data'
+            locations_covered = len(set(visit.get('location', '') for visit in visits_data)) if visits_data else 0
+            
+            # Calculate week score
+            week_score = min(10, (total_visits // 2) + (1 if total_expenses < 5000 else 0) + (locations_covered // 2))
+            
+            # Determine trend
+            if total_visits > 14:
+                trend = "📈 Increasing"
+            elif total_visits < 7:
+                trend = "📉 Needs Improvement"
+            else:
+                trend = "📊 Stable"
+            
+            return {
+                'total_visits': total_visits,
+                'total_expenses': total_expenses,
+                'daily_average': daily_average,
+                'best_day': best_day,
+                'locations_covered': locations_covered,
+                'week_score': week_score,
+                'trend': trend
+            }
+            
+        except Exception as e:
+            logger.error(f"Weekly analytics error: {e}")
+            return {
+                'total_visits': 0,
+                'total_expenses': 0.0,
+                'daily_average': 0.0,
+                'best_day': 'No data',
+                'locations_covered': 0,
+                'week_score': 0,
+                'trend': 'No data'
+            }
+    
+    async def _get_monthly_analytics(self, user_id: str) -> dict:
+        """Get monthly analytics data"""
+        try:
+            from datetime import datetime, timedelta
+            from collections import Counter
+            
+            # Get last 30 days data
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=30)
+            
+            visits_data = self.sheets.get_visits_range(user_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+            expenses_data = self.sheets.get_expenses_range(user_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+            
+            total_visits = len(visits_data) if visits_data else 0
+            total_expenses = sum(float(exp.get('amount', 0)) for exp in expenses_data) if expenses_data else 0
+            
+            # Calculate growth rate (compare first half vs second half of month)
+            mid_date = start_date + timedelta(days=15)
+            first_half_visits = len([v for v in visits_data or [] if v.get('timestamp', '') < mid_date.strftime('%Y-%m-%d')])
+            second_half_visits = total_visits - first_half_visits
+            
+            growth_rate = ((second_half_visits - first_half_visits) / max(first_half_visits, 1)) * 100 if first_half_visits > 0 else 0
+            
+            # Goal progress (assuming 60 visits per month target)
+            goal_progress = min(100, (total_visits / 60) * 100)
+            
+            # Top doctor and product
+            doctors = [visit.get('contact_name', 'Unknown') for visit in visits_data or []]
+            products = []
+            for visit in visits_data or []:
+                orders = visit.get('orders', '')
+                if orders:
+                    products.extend(orders.split(','))
+            
+            top_doctor = Counter(doctors).most_common(1)[0][0] if doctors else 'No visits'
+            top_product = Counter(products).most_common(1)[0][0] if products else 'No products'
+            
+            # Month score
+            month_score = min(10, (total_visits // 6) + (1 if growth_rate > 0 else 0) + (1 if goal_progress > 50 else 0))
+            
+            return {
+                'total_visits': total_visits,
+                'total_expenses': total_expenses,
+                'growth_rate': round(growth_rate, 1),
+                'goal_progress': round(goal_progress, 1),
+                'top_doctor': top_doctor,
+                'top_product': top_product.strip() if top_product != 'No products' else top_product,
+                'month_score': month_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Monthly analytics error: {e}")
+            return {
+                'total_visits': 0,
+                'total_expenses': 0.0,
+                'growth_rate': 0.0,
+                'goal_progress': 0.0,
+                'top_doctor': 'No data',
+                'top_product': 'No data',
+                'month_score': 0
+            }
     
     async def _handle_tracking_callback(self, query, user_id: str, data: str):
         """Handle tracking-related callbacks"""

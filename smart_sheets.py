@@ -931,3 +931,74 @@ class SmartMRSheetsManager:
 
 # Global instance
 smart_sheets = SmartMRSheetsManager()
+    def get_daily_visits(self, user_id: str, date: str):
+        """Get visits for a specific date"""
+        try:
+            all_records = self.main_sheet.get_all_records()
+            
+            visits = [
+                record for record in all_records
+                if (str(record.get('MR_ID')) == str(user_id) and 
+                    record.get('Date') == date and 
+                    record.get('Action_Type') == 'VISIT')
+            ]
+            
+            return visits
+            
+        except Exception as e:
+            logger.error(f"Error getting daily visits: {e}")
+            return []
+    
+    def get_daily_expenses(self, user_id: str, date: str):
+        """Get expenses for a specific date"""
+        try:
+            all_records = self.main_sheet.get_all_records()
+            
+            expenses = [
+                record for record in all_records
+                if (str(record.get('MR_ID')) == str(user_id) and 
+                    record.get('Date') == date and 
+                    record.get('Action_Type') == 'EXPENSE')
+            ]
+            
+            return expenses
+            
+        except Exception as e:
+            logger.error(f"Error getting daily expenses: {e}")
+            return []
+    
+    def get_visits_range(self, user_id: str, start_date: str, end_date: str):
+        """Get visits within a date range"""
+        try:
+            all_records = self.main_sheet.get_all_records()
+            
+            visits = [
+                record for record in all_records
+                if (str(record.get('MR_ID')) == str(user_id) and 
+                    start_date <= record.get('Date', '') <= end_date and 
+                    record.get('Action_Type') == 'VISIT')
+            ]
+            
+            return visits
+            
+        except Exception as e:
+            logger.error(f"Error getting visits range: {e}")
+            return []
+    
+    def get_expenses_range(self, user_id: str, start_date: str, end_date: str):
+        """Get expenses within a date range"""
+        try:
+            all_records = self.main_sheet.get_all_records()
+            
+            expenses = [
+                record for record in all_records
+                if (str(record.get('MR_ID')) == str(user_id) and 
+                    start_date <= record.get('Date', '') <= end_date and 
+                    record.get('Action_Type') == 'EXPENSE')
+            ]
+            
+            return expenses
+            
+        except Exception as e:
+            logger.error(f"Error getting expenses range: {e}")
+            return []
