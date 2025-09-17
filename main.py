@@ -22,13 +22,13 @@ from session_manager import session_manager
 from mr_commands import commands_handler
 import config
 
-# Set up enhanced business logging
+# Set up enhanced business logging with UTF-8 encoding
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=getattr(logging, config.LOG_LEVEL),
     handlers=[
-        logging.FileHandler(config.LOG_FILE),
-        logging.StreamHandler()
+        logging.FileHandler(config.LOG_FILE, encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
     ]
 )
 
@@ -47,6 +47,32 @@ class MRBot:
         self.application = None
         self.setup_application()
         
+    async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle errors gracefully"""
+        error = context.error
+        
+        # Log the error
+        logger.error(f"Bot error: {error}")
+        
+        # Handle specific error types
+        if "BadRequest" in str(error) and "invalid" in str(error).lower():
+            logger.warning(f"Invalid request error (likely URL issue): {error}")
+            return  # Don't notify user for URL issues
+        
+        if "Conflict" in str(error):
+            logger.warning(f"Bot conflict error (multiple instances): {error}")
+            return  # Don't notify user for conflict issues
+        
+        # For other errors, try to notify the user if possible
+        if update and update.effective_chat:
+            try:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="⚠️ Something went wrong. Please try again or use /start to restart."
+                )
+            except Exception as e:
+                logger.error(f"Could not send error message to user: {e}")
+    
     def setup_application(self):
         """Set up Telegram bot application"""
         if not config.TELEGRAM_BOT_TOKEN:
@@ -66,6 +92,9 @@ class MRBot:
         # Add message handlers
         self.application.add_handler(MessageHandler(filters.LOCATION, commands_handler.handle_location))
         self.application.add_handler(MessageHandler(filters.TEXT, self.handle_text_message))
+        
+        # Add error handler
+        self.application.add_error_handler(self.error_handler)
         
         logger.info("MR Bot application configured successfully")
         

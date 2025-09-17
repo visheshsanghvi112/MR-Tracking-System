@@ -607,36 +607,52 @@ class MRCommandsHandler:
         user_id = str(query.from_user.id)
         data = query.data
         
-        # Route callback based on prefix
-        if data.startswith('visit_'):
-            await self._handle_visit_callback(query, user_id, data)
-        elif data.startswith('expense_'):
-            await self._handle_expense_callback(query, user_id, data)
-        elif data.startswith('quick_'):
-            await self._handle_quick_action_callback(query, user_id, data)
-        elif data.startswith('menu_'):
-            await self._handle_menu_callback(query, user_id, data)
-        elif data == 'menu_main':
-            await self._handle_menu_callback(query, user_id, 'menu_main')
-        elif data == 'admin_panel':
-            await self._handle_menu_callback(query, user_id, 'menu_admin_panel')
-        elif data == 'help_main':
-            await self._handle_menu_callback(query, user_id, 'menu_help')
-        elif data.startswith('analytics_'):
-            await self._handle_analytics_callback(query, user_id, data)
-        elif data.startswith('tracking_') or data.startswith('route_'):
-            await self._handle_tracking_callback(query, user_id, data)
-        elif data.startswith('help_'):
-            await self._handle_help_callback(query, user_id, data)
-        elif data.startswith('settings_'):
-            await self._handle_settings_callback(query, user_id, data)
-        elif data.startswith('admin_'):
-            await self._handle_admin_callback(query, user_id, data)
-        else:
-            await query.edit_message_text(
-                "❌ Unknown action. Please try again.",
-                reply_markup=menu_manager.get_welcome_menu(user_id)
-            )
+        try:
+            # Route callback based on prefix
+            if data.startswith('visit_'):
+                await self._handle_visit_callback(query, user_id, data)
+            elif data.startswith('expense_'):
+                await self._handle_expense_callback(query, user_id, data)
+            elif data.startswith('quick_'):
+                await self._handle_quick_action_callback(query, user_id, data)
+            elif data.startswith('menu_'):
+                await self._handle_menu_callback(query, user_id, data)
+            elif data == 'menu_main':
+                await self._handle_menu_callback(query, user_id, 'menu_main')
+            elif data == 'admin_panel':
+                await self._handle_menu_callback(query, user_id, 'menu_admin_panel')
+            elif data == 'help_main':
+                await self._handle_menu_callback(query, user_id, 'menu_help')
+            elif data.startswith('analytics_'):
+                await self._handle_analytics_callback(query, user_id, data)
+            elif data.startswith('tracking_') or data.startswith('route_'):
+                await self._handle_tracking_callback(query, user_id, data)
+            elif data.startswith('help_'):
+                await self._handle_help_callback(query, user_id, data)
+            elif data.startswith('settings_'):
+                await self._handle_settings_callback(query, user_id, data)
+            elif data.startswith('admin_'):
+                await self._handle_admin_callback(query, user_id, data)
+            else:
+                await query.edit_message_text(
+                    "❌ Unknown action. Please try again.",
+                    reply_markup=menu_manager.get_welcome_menu(user_id)
+                )
+        except Exception as e:
+            logger.error(f"Callback query error: {e}")
+            try:
+                await query.edit_message_text(
+                    "⚠️ **Action temporarily unavailable**\n\n"
+                    "Please try again or use the main menu.",
+                    reply_markup=menu_manager.get_welcome_menu(user_id)
+                )
+            except:
+                # If edit fails, send new message
+                await query.message.reply_text(
+                    "⚠️ **Action temporarily unavailable**\n\n"
+                    "Please try again or use the main menu.",
+                    reply_markup=menu_manager.get_welcome_menu(user_id)
+                )
     
     async def _handle_visit_callback(self, query, user_id: str, data: str):
         """Handle visit-related callbacks"""
@@ -1159,8 +1175,12 @@ class MRCommandsHandler:
             if analytics_type == 'daily' or analytics_type == 'today':
                 analytics_data = await self._get_daily_analytics(user_id)
                 
+                # Add timestamp to make message unique
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%H:%M")
+                
                 await query.edit_message_text(
-                    f"📊 **Today's Analytics**\n\n"
+                    f"📊 **Today's Analytics** (Updated: {timestamp})\n\n"
                     f"📅 **Date:** {analytics_data['date']}\n\n"
                     f"🏥 **Visits:** {analytics_data['visits_count']}\n"
                     f"💰 **Expenses:** ₹{analytics_data['total_expenses']:.2f}\n"
@@ -1174,8 +1194,12 @@ class MRCommandsHandler:
             elif analytics_type == 'week':
                 analytics_data = await self._get_weekly_analytics(user_id)
                 
+                # Add timestamp to make message unique
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%H:%M")
+                
                 await query.edit_message_text(
-                    f"📅 **Weekly Analytics**\n\n"
+                    f"📅 **Weekly Analytics** (Updated: {timestamp})\n\n"
                     f"📊 **Total Visits:** {analytics_data['total_visits']}\n"
                     f"💸 **Total Expenses:** ₹{analytics_data['total_expenses']:.2f}\n"
                     f"📈 **Daily Average:** {analytics_data['daily_average']:.1f} visits\n"
@@ -1189,8 +1213,12 @@ class MRCommandsHandler:
             elif analytics_type == 'month':
                 analytics_data = await self._get_monthly_analytics(user_id)
                 
+                # Add timestamp to make message unique
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%H:%M")
+                
                 await query.edit_message_text(
-                    f"📉 **Monthly Analytics**\n\n"
+                    f"📉 **Monthly Analytics** (Updated: {timestamp})\n\n"
                     f"📊 **Total Visits:** {analytics_data['total_visits']}\n"
                     f"💰 **Total Expenses:** ₹{analytics_data['total_expenses']:.2f}\n"
                     f"📈 **Monthly Growth:** {analytics_data['growth_rate']}%\n"
@@ -1210,10 +1238,13 @@ class MRCommandsHandler:
                 
         except Exception as e:
             logger.error(f"Analytics callback error: {e}")
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S")
             await query.edit_message_text(
-                "❌ **Analytics Error**\n\n"
+                f"❌ **Analytics Error** ({timestamp})\n\n"
                 "Unable to generate analytics at the moment.\n"
-                "Please try again later or contact support.",
+                "Please try again later or contact support.\n\n"
+                f"Error: {str(e)[:50]}...",
                 reply_markup=menu_manager.get_analytics_menu()
             )
     
@@ -1229,8 +1260,21 @@ class MRCommandsHandler:
             
             # Calculate metrics
             visits_count = len(visits_data) if visits_data else 0
-            total_expenses = sum(float(exp.get('amount', 0)) for exp in expenses_data) if expenses_data else 0
-            unique_locations = len(set(visit.get('location', '') for visit in visits_data)) if visits_data else 0
+            
+            # Parse expense amounts from Orders field (format: "Expense logged: Mixed Rs3890.0")
+            total_expenses = 0
+            if expenses_data:
+                for exp in expenses_data:
+                    orders = exp.get('Orders', '')
+                    if 'Rs' in orders:
+                        try:
+                            # Extract amount after 'Rs'
+                            amount_str = orders.split('Rs')[1].strip()
+                            total_expenses += float(amount_str)
+                        except (ValueError, IndexError):
+                            pass
+            
+            unique_locations = len(set(visit.get('Visit_Type', '') for visit in visits_data)) if visits_data else 0
             
             # Calculate performance score (simple algorithm)
             performance_score = min(10, (visits_count * 2) + (1 if total_expenses < 1000 else 0) + (unique_locations * 1))
@@ -1270,17 +1314,29 @@ class MRCommandsHandler:
             expenses_data = self.sheets.get_expenses_range(user_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
             
             total_visits = len(visits_data) if visits_data else 0
-            total_expenses = sum(float(exp.get('amount', 0)) for exp in expenses_data) if expenses_data else 0
+            
+            # Parse expense amounts from Orders field
+            total_expenses = 0
+            if expenses_data:
+                for exp in expenses_data:
+                    orders = exp.get('Orders', '')
+                    if 'Rs' in orders:
+                        try:
+                            amount_str = orders.split('Rs')[1].strip()
+                            total_expenses += float(amount_str)
+                        except (ValueError, IndexError):
+                            pass
+            
             daily_average = total_visits / 7
             
             # Find best day
             daily_counts = {}
             for visit in visits_data or []:
-                date = visit.get('timestamp', '')[:10]  # Get date part
+                date = visit.get('Date', '')  # Use Date field
                 daily_counts[date] = daily_counts.get(date, 0) + 1
             
             best_day = max(daily_counts.items(), key=lambda x: x[1])[0] if daily_counts else 'No data'
-            locations_covered = len(set(visit.get('location', '') for visit in visits_data)) if visits_data else 0
+            locations_covered = len(set(visit.get('Visit_Type', '') for visit in visits_data)) if visits_data else 0
             
             # Calculate week score
             week_score = min(10, (total_visits // 2) + (1 if total_expenses < 5000 else 0) + (locations_covered // 2))
@@ -1329,7 +1385,18 @@ class MRCommandsHandler:
             expenses_data = self.sheets.get_expenses_range(user_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
             
             total_visits = len(visits_data) if visits_data else 0
-            total_expenses = sum(float(exp.get('amount', 0)) for exp in expenses_data) if expenses_data else 0
+            
+            # Parse expense amounts from Orders field
+            total_expenses = 0
+            if expenses_data:
+                for exp in expenses_data:
+                    orders = exp.get('Orders', '')
+                    if 'Rs' in orders:
+                        try:
+                            amount_str = orders.split('Rs')[1].strip()
+                            total_expenses += float(amount_str)
+                        except (ValueError, IndexError):
+                            pass
             
             # Calculate growth rate (compare first half vs second half of month)
             mid_date = start_date + timedelta(days=15)
@@ -1386,14 +1453,14 @@ class MRCommandsHandler:
             from datetime import datetime
             today = datetime.now().strftime('%Y-%m-%d')
             
-            # Generate map URL (you'll need to host the dashboard)
-            map_url = f"http://localhost:5001/map?user_id={user_id}&date={today}"
+            # Note: Map URLs disabled for now (need proper hosting)
+            # map_url = f"http://localhost:5001/map?user_id={user_id}&date={today}"
             
-            # Create buttons
+            # Create buttons (without invalid localhost URLs)
             keyboard = [
-                [InlineKeyboardButton("🗺️ Open Live Map", url=map_url)],
-                [InlineKeyboardButton("📱 Mobile Map", url=f"{map_url}&mobile=1"),
-                 InlineKeyboardButton("📊 Dashboard", url=f"http://localhost:5001")],
+                # [InlineKeyboardButton("🗺️ Open Live Map", url=map_url)],
+                # [InlineKeyboardButton("📱 Mobile Map", url=f"{map_url}&mobile=1"),
+                #  InlineKeyboardButton("📊 Dashboard", url=f"http://localhost:5001")],
                 [InlineKeyboardButton("📥 Export Route", callback_data="export_route"),
                  InlineKeyboardButton("📤 Share Route", callback_data="share_route")],
                 [InlineKeyboardButton("🔙 Back to Analytics", callback_data="analytics_main")]

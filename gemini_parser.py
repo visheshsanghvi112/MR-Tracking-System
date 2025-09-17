@@ -284,7 +284,17 @@ Return only JSON with business intelligence.
                 }
             )
             
-            return response.text
+            # Handle response safely
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    return response.text
+                else:
+                    logger.warning(f"Gemini response has no content parts. Finish reason: {candidate.finish_reason}")
+                    return None
+            else:
+                logger.warning("Gemini response has no candidates")
+                return None
             
         except Exception as e:
             logger.error(f"Gemini API call error: {e}")

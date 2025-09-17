@@ -929,8 +929,6 @@ class SmartMRSheetsManager:
             logger.error(f"Error fixing MR coordinates: {e}")
             return []
 
-# Global instance
-smart_sheets = SmartMRSheetsManager()
     def get_daily_visits(self, user_id: str, date: str):
         """Get visits for a specific date"""
         try:
@@ -940,7 +938,7 @@ smart_sheets = SmartMRSheetsManager()
                 record for record in all_records
                 if (str(record.get('MR_ID')) == str(user_id) and 
                     record.get('Date') == date and 
-                    record.get('Action_Type') == 'VISIT')
+                    record.get('Action_Type') in ['doctor', 'chemist', 'stockist', 'VISIT'])
             ]
             
             return visits
@@ -958,7 +956,7 @@ smart_sheets = SmartMRSheetsManager()
                 record for record in all_records
                 if (str(record.get('MR_ID')) == str(user_id) and 
                     record.get('Date') == date and 
-                    record.get('Action_Type') == 'EXPENSE')
+                    'Expense logged:' in str(record.get('Orders', '')))
             ]
             
             return expenses
@@ -976,7 +974,7 @@ smart_sheets = SmartMRSheetsManager()
                 record for record in all_records
                 if (str(record.get('MR_ID')) == str(user_id) and 
                     start_date <= record.get('Date', '') <= end_date and 
-                    record.get('Action_Type') == 'VISIT')
+                    record.get('Action_Type') in ['doctor', 'chemist', 'stockist', 'VISIT'])
             ]
             
             return visits
@@ -994,7 +992,7 @@ smart_sheets = SmartMRSheetsManager()
                 record for record in all_records
                 if (str(record.get('MR_ID')) == str(user_id) and 
                     start_date <= record.get('Date', '') <= end_date and 
-                    record.get('Action_Type') == 'EXPENSE')
+                    'Expense logged:' in str(record.get('Orders', '')))
             ]
             
             return expenses
@@ -1002,3 +1000,6 @@ smart_sheets = SmartMRSheetsManager()
         except Exception as e:
             logger.error(f"Error getting expenses range: {e}")
             return []
+
+# Global instance
+smart_sheets = SmartMRSheetsManager()
