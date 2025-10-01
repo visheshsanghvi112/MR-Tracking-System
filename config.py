@@ -60,4 +60,4 @@ MIN_LOCATION_ACCURACY = 100  # meters
 
 # Logging
 LOG_LEVEL = "INFO"
-LOG_FILE = "mr_bot/data/mr_bot.log"
+LOG_FILE = "mr_bot.log"

@@ -51,8 +51,15 @@ class MRBot:
         """Handle errors gracefully"""
         error = context.error
         
-        # Log the error
-        logger.error(f"Bot error: {error}")
+        # Log the error with more context
+        if "'NoneType' object has no attribute 'location'" in str(error):
+            logger.error(f"LOCATION_ERROR: {error}")
+            logger.error(f"UPDATE_CONTEXT: update={update}, update.message={getattr(update, 'message', 'NO_MESSAGE') if update else 'NO_UPDATE'}")
+            logger.error(f"CALLBACK_QUERY: {getattr(update, 'callback_query', 'NO_CALLBACK') if update else 'NO_UPDATE'}")
+            import traceback
+            logger.error(f"TRACEBACK: {traceback.format_exc()}")
+        else:
+            logger.error(f"Bot error: {error}")
         
         # Handle specific error types
         if "BadRequest" in str(error) and "invalid" in str(error).lower():
@@ -100,6 +107,11 @@ class MRBot:
         
     async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Route text messages based on content"""
+        # Safety check for message existence
+        if not update or not update.message or not update.message.text:
+            logger.error(f"TEXT_MESSAGE_ERROR: Invalid update object - update={update}, message={getattr(update, 'message', 'NO_MESSAGE') if update else 'NO_UPDATE'}")
+            return
+            
         text = update.message.text.strip()
         user_id = update.effective_user.id
         user_name = update.effective_user.first_name or "Unknown"

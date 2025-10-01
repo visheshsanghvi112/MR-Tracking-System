@@ -37,6 +37,11 @@ class MRCommandsHandler:
         
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
+        # Safety check for message existence
+        if not update or not update.message:
+            logger.error(f"START_COMMAND_ERROR: Invalid update object - update={update}, message={getattr(update, 'message', 'NO_MESSAGE') if update else 'NO_UPDATE'}")
+            return
+            
         user_id = update.effective_user.id
         
         # 🌍 MR Bot is now OPEN TO EVERYONE! 
@@ -92,6 +97,11 @@ class MRCommandsHandler:
             
     async def capture_location_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle location capture request"""
+        # Safety check for message existence
+        if not update or not update.message:
+            logger.error(f"CAPTURE_LOCATION_ERROR: Invalid update object - update={update}, message={getattr(update, 'message', 'NO_MESSAGE') if update else 'NO_UPDATE'}")
+            return
+            
         user_id = update.effective_user.id
         
         await update.message.reply_text(
@@ -107,6 +117,12 @@ class MRCommandsHandler:
     async def handle_location(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Process received location"""
         user_id = update.effective_user.id
+        
+        # Check if message exists and has location
+        if not update.message:
+            logger.error(f"LOCATION_ERROR: No message in update for user {user_id}")
+            return
+            
         location = update.message.location
         
         if not location:

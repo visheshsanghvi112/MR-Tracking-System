@@ -625,29 +625,30 @@ class SmartMRSheetsManager:
         try:
             if not self.main_sheet:
                 return []
-                
+
             # Get all records
             records = self.main_sheet.get_all_records()
-            
+
             # Extract unique MRs with CORRECT GPS mapping based on actual sheet structure
             mrs = {}
             for record in records:
                 mr_id = record.get('MR_ID')
                 mr_name = record.get('MR_Name', f'MR {mr_id}')
-                
+
                 if mr_id and mr_id not in mrs:
-                    # ACTUAL GPS coordinate mapping from sheet structure:
-                    # Location field = latitude, GPS_Lat field = longitude
-                    location_field = record.get('Location', '')  # Contains latitude
-                    gps_lat_field = record.get('GPS_Lat', '')    # Contains longitude
-                    remarks = record.get('Remarks', '')          # Might contain proper coordinates
+                    # CORRECT GPS coordinate mapping:
+                    # GPS_Lat field = latitude, GPS_Lon field = longitude, Location field = address
+                    gps_lat_field = record.get('GPS_Lat', '')    # Contains latitude
+                    gps_lon_field = record.get('GPS_Lon', '')    # Contains longitude
+                    location_field = record.get('Location', '')  # Contains address/location name
+                    remarks = record.get('Remarks', '')          # Might contain additional info
                     timestamp = record.get('Timestamp', '')
-                    
+
                     # Parse coordinates properly
                     try:
-                        lat = float(location_field) if location_field and location_field != '' else 0
-                        lon = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
-                        
+                        lat = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
+                        lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
+
                         # If still no coordinates, try parsing from Remarks field
                         if (lat == 0 or lon == 0) and remarks:
                             # Parse format like "Lat: 18.947962, Lon: 72.829974"
@@ -659,13 +660,13 @@ class SmartMRSheetsManager:
                                     lon = float(lon_str)
                                 except:
                                     pass
-                                    
+
                     except (ValueError, TypeError):
                         lat, lon = 0, 0
-                    
+
                     # Get proper location address
-                    location_address = remarks if remarks and "Lat:" not in remarks else f"{lat:.6f}, {lon:.6f}"
-                    
+                    location_address = location_field if location_field else (remarks if remarks and "Lat:" not in remarks else f"{lat:.6f}, {lon:.6f}")
+
                     mrs[mr_id] = {
                         'mr_id': str(mr_id),
                         'name': mr_name,
@@ -678,9 +679,9 @@ class SmartMRSheetsManager:
                         'last_activity': timestamp,
                         'total_visits': len([r for r in records if r.get('MR_ID') == mr_id])
                     }
-            
+
             return list(mrs.values())
-            
+
         except Exception as e:
             logger.error(f"Error getting MR list: {e}")
             return []
@@ -690,27 +691,28 @@ class SmartMRSheetsManager:
         try:
             if not self.main_sheet:
                 return []
-                
+
             records = self.main_sheet.get_all_records()
-            
+
             # Filter by MR and date
             route_data = []
             for record in records:
                 if str(record.get('MR_ID')) == str(mr_id):
                     if date and record.get('Date') != date:
                         continue
-                        
-                    # ACTUAL GPS coordinate mapping:
-                    # Location field = latitude, GPS_Lat field = longitude
-                    location_field = record.get('Location', '')  # Contains latitude
-                    gps_lat_field = record.get('GPS_Lat', '')    # Contains longitude
-                    remarks = record.get('Remarks', '')          # Might contain proper coordinates
-                    
+
+                    # CORRECT GPS coordinate mapping:
+                    # GPS_Lat field = latitude, GPS_Lon field = longitude, Location field = address
+                    gps_lat_field = record.get('GPS_Lat', '')    # Contains latitude
+                    gps_lon_field = record.get('GPS_Lon', '')    # Contains longitude
+                    location_field = record.get('Location', '')  # Contains address/location name
+                    remarks = record.get('Remarks', '')          # Might contain additional info
+
                     # Parse coordinates safely
                     try:
-                        lat = float(location_field) if location_field and location_field != '' else 0
-                        lon = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
-                        
+                        lat = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
+                        lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
+
                         # If still no coordinates, try parsing from Remarks field
                         if (lat == 0 or lon == 0) and remarks:
                             # Parse format like "Lat: 18.947962, Lon: 72.829974"
@@ -722,14 +724,14 @@ class SmartMRSheetsManager:
                                     lon = float(lon_str)
                                 except:
                                     pass
-                                    
+
                     except (ValueError, TypeError):
                         lat, lon = 0, 0
-                    
+
                     if lat and lon and -90 <= lat <= 90 and -180 <= lon <= 180:
                         # Get proper location name
-                        location_name = remarks if remarks and "Lat:" not in remarks else f"{lat:.6f}, {lon:.6f}"
-                        
+                        location_name = location_field if location_field else (remarks if remarks and "Lat:" not in remarks else f"{lat:.6f}, {lon:.6f}")
+
                         route_data.append({
                             'timestamp': record.get('Timestamp', ''),
                             'lat': lat,
@@ -739,11 +741,11 @@ class SmartMRSheetsManager:
                             'contact_name': record.get('Contact_Name', ''),
                             'orders': record.get('Orders', 0)
                         })
-            
+
             # Sort by timestamp
             route_data.sort(key=lambda x: x['timestamp'])
             return route_data
-            
+
         except Exception as e:
             logger.error(f"Error getting route data for MR {mr_id}: {e}")
             return []
@@ -825,22 +827,23 @@ class SmartMRSheetsManager:
         try:
             if not self.main_sheet:
                 return []
-                
+
             records = self.main_sheet.get_all_records()
             visit_records = []
-            
+
             for record in records:
-                # CORRECT GPS coordinate mapping based on actual sheet structure
-                # From test: Location=lat, GPS_Lat=lon, GPS_Lon=session_id
-                location_field = record.get('Location', '')  # This contains latitude
-                gps_lat_field = record.get('GPS_Lat', '')    # This contains longitude  
-                remarks = record.get('Remarks', '')          # This might contain coordinates
-                
-                # Parse coordinates safely - Location field has latitude, GPS_Lat has longitude
+                # CORRECT GPS coordinate mapping:
+                # GPS_Lat field = latitude, GPS_Lon field = longitude, Location field = address
+                gps_lat_field = record.get('GPS_Lat', '')    # This contains latitude
+                gps_lon_field = record.get('GPS_Lon', '')    # This contains longitude
+                location_field = record.get('Location', '')  # This contains address/location name
+                remarks = record.get('Remarks', '')          # This might contain additional info
+
+                # Parse coordinates safely - GPS_Lat field has latitude, GPS_Lon has longitude
                 try:
-                    lat = float(location_field) if location_field and location_field != '' else 0
-                    lon = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
-                    
+                    lat = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
+                    lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
+
                     # If still no coordinates, try parsing from Remarks field
                     if (lat == 0 or lon == 0) and remarks:
                         # Parse format like "Lat: 18.947962, Lon: 72.829974"
@@ -852,15 +855,15 @@ class SmartMRSheetsManager:
                                 lon = float(lon_str)
                             except:
                                 pass
-                                
+
                 except (ValueError, TypeError):
                     lat, lon = 0, 0
-                
+
                 # Only include records with valid GPS coordinates
                 if lat != 0 and lon != 0 and -90 <= lat <= 90 and -180 <= lon <= 180:
-                    # Get proper location name from remarks or use coordinates
-                    location_name = remarks if remarks and "Lat:" not in remarks else f"{lat:.6f}, {lon:.6f}"
-                    
+                    # Get proper location name from Location field or remarks or use coordinates
+                    location_name = location_field if location_field else (remarks if remarks and "Lat:" not in remarks else f"{lat:.6f}, {lon:.6f}")
+
                     visit_records.append({
                         'mr_id': str(record.get('MR_ID', '')),
                         'mr_name': record.get('MR_Name', 'Unknown'),
@@ -872,11 +875,11 @@ class SmartMRSheetsManager:
                         'gps_lon': lon,
                         'visit_type': record.get('Visit_Type', 'Unknown'),
                         'contact_name': record.get('Contact_Name', ''),
-                        'session_id': record.get('GPS_Lon', '')  # Session ID is in GPS_Lon field
+                        'session_id': record.get('Session_ID', '')  # Session ID is in Session_ID field
                     })
-            
+
             return visit_records
-            
+
         except Exception as e:
             logger.error(f"Error getting visit records with GPS: {e}")
             return []

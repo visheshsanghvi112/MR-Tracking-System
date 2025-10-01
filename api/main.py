@@ -287,22 +287,46 @@ async def get_mr_analytics(
 ):
     """Get analytics for a specific MR"""
     try:
-        # Get analytics from sheets and session data
+        # Get real analytics from sheets
+        mrs_data = sheets_manager.get_all_mrs()
+        mr_data = None
+        for mr in mrs_data:
+            if str(mr.get('mr_id')) == str(mr_id):
+                mr_data = mr
+                break
+
+        if not mr_data:
+            raise HTTPException(status_code=404, detail="MR not found")
+
+        # Get route data for today to calculate real analytics
+        today = datetime.now().strftime("%Y-%m-%d")
+        route_data = sheets_manager.get_mr_route_data(mr_id, today)
+
+        # Calculate real analytics
+        visits_today = len([r for r in route_data if r.get('visit_type')])
+        total_distance = sum([0.5 for _ in route_data])  # Mock distance calculation
+        active_hours = len(route_data) * 0.5  # Mock active hours
+        efficiency_score = min(100, (visits_today * 10) + 50)  # Simple efficiency calculation
+
         analytics_data = {
             "mr_id": mr_id,
             "period": period,
-            "visits_today": 0,
-            "distance_covered": 0,
-            "active_hours": 0,
-            "efficiency_score": 0,
-            "last_activity": None
+            "visits_today": visits_today,
+            "distance_covered": round(total_distance, 2),
+            "active_hours": round(active_hours, 2),
+            "efficiency_score": efficiency_score,
+            "last_activity": mr_data.get('last_activity'),
+            "total_visits": mr_data.get('total_visits', 0),
+            "status": mr_data.get('status', 'unknown')
         }
-        
+
         return {
             "success": True,
             "data": analytics_data,
             "timestamp": datetime.now().isoformat()
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting analytics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
@@ -315,16 +339,36 @@ async def get_team_analytics(
     """Get team-wide analytics overview"""
     try:
         mrs_data = sheets_manager.get_all_mrs()
-        
+
+        # Calculate real analytics from sheets data
+        total_mrs = len(mrs_data)
+        active_mrs = len([mr for mr in mrs_data if mr.get('status') == 'active'])
+        total_visits = sum(mr.get('total_visits', 0) for mr in mrs_data)
+        total_distance = sum(mr.get('distance_today', 0) for mr in mrs_data)
+
+        # Get today's route data for more accurate calculations
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_visits = 0
+        today_distance = 0
+
+        for mr in mrs_data:
+            mr_id = mr.get('mr_id')
+            route_data = sheets_manager.get_mr_route_data(mr_id, today)
+            today_visits += len([r for r in route_data if r.get('visit_type')])
+            today_distance += sum([0.5 for _ in route_data])  # Mock distance calculation
+
         team_analytics = {
-            "total_mrs": len(mrs_data),
-            "active_mrs": len([mr for mr in mrs_data if mr.get('status') == 'active']),
-            "total_visits": sum(mr.get('total_visits', 0) for mr in mrs_data),
-            "total_distance": sum(mr.get('distance_today', 0) for mr in mrs_data),
+            "total_mrs": total_mrs,
+            "active_mrs": active_mrs,
+            "total_visits": total_visits,
+            "total_distance": round(total_distance, 2),
+            "today_visits": today_visits,
+            "today_distance": round(today_distance, 2),
+            "avg_visits_per_mr": round(total_visits / max(total_mrs, 1), 2),
             "period": period,
             "generated_at": datetime.now().isoformat()
         }
-        
+
         return {
             "success": True,
             "data": team_analytics,
@@ -670,17 +714,37 @@ async def get_analytics(
     try:
         # Get data from sheets
         mrs_data = sheets_manager.get_all_mrs()
-        
+
+        # Calculate real analytics
+        total_mrs = len(mrs_data)
+        active_mrs = len([mr for mr in mrs_data if mr.get('status') == 'active'])
+        total_visits = sum(mr.get('total_visits', 0) for mr in mrs_data)
+        total_distance = sum(mr.get('distance_today', 0) for mr in mrs_data)
+
+        # Get today's data for more accurate metrics
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_visits = 0
+        today_distance = 0
+
+        for mr in mrs_data:
+            mr_id = mr.get('mr_id')
+            route_data = sheets_manager.get_mr_route_data(mr_id, today)
+            today_visits += len([r for r in route_data if r.get('visit_type')])
+            today_distance += sum([0.5 for _ in route_data])
+
         analytics = {
             "period": period,
-            "total_mrs": len(mrs_data),
-            "active_mrs": len([mr for mr in mrs_data if mr.get('status') == 'active']),
-            "total_visits": sum(mr.get('total_visits', 0) for mr in mrs_data),
-            "total_distance": sum(mr.get('distance_today', 0) for mr in mrs_data),
-            "efficiency_avg": 87.5,  # Calculated metric
+            "total_mrs": total_mrs,
+            "active_mrs": active_mrs,
+            "total_visits": total_visits,
+            "total_distance": round(total_distance, 2),
+            "today_visits": today_visits,
+            "today_distance": round(today_distance, 2),
+            "avg_visits_per_mr": round(total_visits / max(total_mrs, 1), 2),
+            "efficiency_avg": round((today_visits * 10) + 50, 1),  # Simple efficiency calculation
             "timestamp": datetime.now().isoformat()
         }
-        
+
         return {
             "success": True,
             "data": analytics
@@ -719,20 +783,53 @@ async def get_activity_feed(
 ):
     """Get recent activity feed"""
     try:
-        # Get recent activities from sheets and sessions
+        # Get real activities from sheets
         activities = []
-        
-        # Add sample activities for now
-        for i in range(limit):
+
+        # Get all MRs first
+        mrs_data = sheets_manager.get_all_mrs()
+
+        # Get recent visit records from sheets
+        visit_records = sheets_manager.get_all_visit_records_with_gps()
+
+        # Sort by timestamp and take the most recent ones
+        visit_records.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+
+        for i, record in enumerate(visit_records[:limit]):
+            # Find the MR name
+            mr_name = "Unknown MR"
+            for mr in mrs_data:
+                if str(mr.get('mr_id')) == str(record.get('mr_id')):
+                    mr_name = mr.get('name', 'Unknown MR')
+                    break
+
             activities.append({
-                "id": i + 1,
-                "mr_id": f"120191110{i % 3}",
+                "id": f"{record.get('mr_id')}_{record.get('timestamp')}_{i}",
+                "mr_id": str(record.get('mr_id')),
+                "mr_name": mr_name,
                 "action": "visit_completed",
-                "location": f"Hospital {i + 1}",
-                "timestamp": (datetime.now() - timedelta(minutes=i * 30)).isoformat(),
-                "details": f"Completed visit at Hospital {i + 1}"
+                "location": record.get('location', 'Unknown Location'),
+                "timestamp": record.get('timestamp', datetime.now().isoformat()),
+                "details": f"Visit completed at {record.get('location', 'Unknown Location')}",
+                "visit_type": record.get('visit_type', 'Unknown'),
+                "gps_coordinates": f"{record.get('gps_lat', 0):.6f}, {record.get('gps_lon', 0):.6f}"
             })
-        
+
+        # If we don't have enough real activities, add some from MR status changes
+        if len(activities) < limit:
+            for mr in mrs_data[:limit - len(activities)]:
+                activities.append({
+                    "id": f"status_{mr.get('mr_id')}_{datetime.now().isoformat()}",
+                    "mr_id": str(mr.get('mr_id')),
+                    "mr_name": mr.get('name', 'Unknown MR'),
+                    "action": "status_update",
+                    "location": mr.get('last_location', {}).get('address', 'Unknown'),
+                    "timestamp": mr.get('last_activity', datetime.now().isoformat()),
+                    "details": f"MR status: {mr.get('status', 'unknown')}",
+                    "visit_type": "status",
+                    "gps_coordinates": f"{mr.get('last_location', {}).get('lat', 0):.6f}, {mr.get('last_location', {}).get('lng', 0):.6f}"
+                })
+
         return {
             "success": True,
             "activities": activities,
