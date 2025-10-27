@@ -1,0 +1,98 @@
+================================================================
+WHAT YOU NEED TO SEE IN BACKEND CONSOLE AFTER RESTART
+================================================================
+
+When backend starts, you MUST see this:
+
+✅ Real Google Sheets Manager loaded successfully (with latest code)
+
+🧪 STARTUP TEST: Checking sheets data availability...
+[DEBUG] Parsed from Remarks: lat=18.947934, lon=72.829943
+   ✅ TEST PASSED: Found 1 records for MR 1201911108 on 2025-10-15
+   📍 First location: 18.947934, 72.829943
+
+If you see this -> BACKEND HAS REAL DATA!
+
+Then when you select MR in browser:
+
+======================================================================
+🔍 ROUTE REQUEST DEBUG
+======================================================================
+📋 MR ID: 1201911108
+📅 Requested Date: 2025-10-15
+📅 Today's Date: 2025-10-15
+🎯 Is Today: True
+
+🔍 STEP 1: Checking live tracking...
+📡 Live trail result: 0 points
+
+🔍 STEP 2: No live data, checking Google Sheets for TODAY...
+   Calling: sheets_manager.get_mr_route_data('1201911108', '2025-10-15')
+[DEBUG] Parsed from Remarks: lat=18.947934, lon=72.829943
+📊 Sheets returned: 1 records
+
+✅ FOUND REAL DATA IN SHEETS!
+   Records found: 1
+
+🔄 Transforming sheets data to route format...
+   Record 1: 18.947934 at (18.947934, 72.829943)
+
+✅ SUCCESS: Returning 1 REAL points from Google Sheets
+   MR 1201911108 will show ACTUAL logged locations
+======================================================================
+
+Browser will show:
+  📍 Point 1: {latitude: 18.947934, longitude: 72.829943, ...}
+
+================================================================
+IF YOU DON'T SEE THIS
+================================================================
+
+Problem 1: No [DEBUG] lines
+---------------------------
+Backend is using old smart_sheets.py without debug
+Solution: Check if smart_sheets.py was saved properly
+
+Problem 2: Startup test shows 0 records
+---------------------------------------
+Sheets connection works but date/MR_ID doesn't match
+Solution: Check Date column format in your sheets
+
+Problem 3: No startup test at all
+----------------------------------
+Backend failed to load
+Solution: Check console for errors
+
+================================================================
+MANUAL RESTART STEPS
+================================================================
+
+1. Find backend terminal (shows "Uvicorn running")
+2. Click on it to focus
+3. Press Ctrl+C
+4. Wait 2 seconds
+5. Type: python api/main.py
+6. Press Enter
+7. WATCH THE OUTPUT - look for:
+   - "Reloading smart_sheets module..." 
+   - "TEST PASSED: Found 1 records"
+   - "[DEBUG] Parsed from Remarks: lat=18.947934"
+
+8. If you see all 3: SUCCESS! Backend loaded new code
+9. If you don't see them: Something's wrong
+
+================================================================
+THEN IN BROWSER
+================================================================
+
+1. Press Ctrl+Shift+R (hard reload)
+2. Go to Dashboard
+3. Select MR 1201911108
+4. Date: 2025-10-15
+5. Check browser console for:
+   latitude: 18.947934, longitude: 72.829943
+
+NOT: 19.076, 72.8777 (old hardcoded)
+
+================================================================
+

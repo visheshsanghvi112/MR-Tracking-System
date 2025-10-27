@@ -19,24 +19,43 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Real Google Sheets Integration
 try:
+    # Force reload of smart_sheets module to get latest code
+    import importlib
+    if 'smart_sheets' in sys.modules:
+        print("[INFO] Reloading smart_sheets module to get latest changes...")
+        importlib.reload(sys.modules['smart_sheets'])
+    
     from smart_sheets import SmartMRSheetsManager
     sheets_manager = SmartMRSheetsManager()
-    print("✅ Real Google Sheets Manager loaded successfully")
+    print("[OK] Real Google Sheets Manager loaded successfully (with latest code)")
+    
+    # IMMEDIATE TEST: Check if sheets can find today's data
+    print("\n[TEST] STARTUP TEST: Checking sheets data availability...")
+    test_result = sheets_manager.get_mr_route_data("1201911108", "2025-10-15")
+    if test_result:
+        print(f"   [OK] TEST PASSED: Found {len(test_result)} records for MR 1201911108 on 2025-10-15")
+        print(f"   [GPS] First location: {test_result[0].get('lat', 0)}, {test_result[0].get('lng', 0)}")
+    else:
+        print(f"   [WARN] TEST: No data found for MR 1201911108 on 2025-10-15")
+        print(f"   [INFO] This is normal if no data exists for this date")
 except Exception as e:
-    print(f"⚠️ Smart Sheets Manager failed: {e}")
+    print(f"[ERROR] Smart Sheets Manager failed: {e}")
+    import traceback
+    traceback.print_exc()
     # Mock fallback only if real sheets fail
     class MockSheetsManager:
         def get_all_mrs(self): return [{"id": 1201911108, "name": "Test MR", "status": "active"}]
         def get_mr_details(self, mr_id): return {"id": mr_id, "name": f"MR {mr_id}", "status": "active"}
         def get_route_data(self, mr_id, date): return []
     sheets_manager = MockSheetsManager()
+    print("[WARN] Using Mock Sheets Manager (Real sheets failed to load)")
 
 # Real Session Manager Integration  
 try:
     from session_manager import mr_session_manager as session_manager
-    print("✅ Real Session Manager loaded successfully")
+    print("[OK] Real Session Manager loaded successfully")
 except Exception as e:
-    print(f"⚠️ Session Manager failed: {e}")
+    print(f"[ERROR] Session Manager failed: {e}")
     # Mock fallback only if real session manager fails
     class MockSessionManager:
         def capture_location(self, mr_id, lat, lng, address): return True
@@ -47,9 +66,9 @@ except Exception as e:
 # Real Config Integration
 try:
     import config
-    print("✅ Real Config loaded successfully")
+    print("[OK] Real Config loaded successfully")
 except Exception as e:
-    print(f"⚠️ Config failed: {e}")
+    print(f"[ERROR] Config failed: {e}")
     # Mock config fallback
     class MockConfig:
         pass
@@ -454,24 +473,95 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
     try:
         # If date is today, combine sheets data with live tracking
         today = datetime.now().strftime("%Y-%m-%d")
+        print("\n" + "="*70)
+        print(f"[DEBUG] ROUTE REQUEST")
+        print("="*70)
+        print(f"[MR] ID: {mr_id}")
+        print(f"[DATE] Requested: {date}")
+        print(f"[DATE] Today: {today}")
+        print(f"[CHECK] Is Today: {date == today}")
         logger.info(f"Route request: MR {mr_id}, date {date}, today is {today}")
         
         if date == today:
-            # Get today's trail from live tracking
+            # PRIORITY 1: Try live tracking first
+            print(f"\n[STEP 1] Checking live tracking...")
             live_trail = session_manager.get_location_trail(mr_id, 24)
-            logger.info(f"Live trail has {len(live_trail)} points")
+            print(f"[LIVE] Trail result: {len(live_trail)} points")
+            logger.info(f"📡 Live trail has {len(live_trail)} points")
             
-            # If no live data, return sample route points for testing
+            # PRIORITY 2: If no live data, try Google Sheets for today
             if not live_trail:
-                # Sample Mumbai route points for testing
+                print(f"\n[STEP 2] No live data, checking Google Sheets for TODAY...")
+                print(f"   [CALL] sheets_manager.get_mr_route_data('{mr_id}', '{date}')")
+                logger.info(f"[INFO] No live trail, checking Google Sheets for today's data for MR {mr_id}")
+                
+                try:
+                    sheets_data_today = sheets_manager.get_mr_route_data(str(mr_id), date)
+                    print(f"[SHEETS] Returned: {len(sheets_data_today) if sheets_data_today else 0} records")
+                    if sheets_data_today and len(sheets_data_today) > 0:
+                        print(f"   [DATA] First record: {sheets_data_today[0] if sheets_data_today else 'None'}")
+                except Exception as sheet_error:
+                    print(f"[ERROR] SHEETS ERROR: {sheet_error}")
+                    sheets_data_today = []
+                
+                if sheets_data_today:
+                    print(f"\n[SUCCESS] FOUND REAL DATA IN SHEETS!")
+                    print(f"   [COUNT] Records found: {len(sheets_data_today)}")
+                    logger.info(f"[OK] Found {len(sheets_data_today)} records in sheets for MR {mr_id} today")
+                    
+                    # Transform sheets data to route format
+                    print(f"\n[TRANSFORM] Converting sheets data to route format...")
+                    route_points = []
+                    for idx, record in enumerate(sheets_data_today):
+                        print(f"   [REC {idx+1}] {record.get('location', 'N/A')} at ({record.get('lat', 0)}, {record.get('lng', 0)})")
+                        # FIXED: Data from sheets should default to 'visit' type (logged locations are visits)
+                        route_points.append({
+                            "time": record.get('timestamp', '').split('T')[1][:5] if 'T' in record.get('timestamp', '') else '00:00',
+                            "lat": record.get('lat', 0),
+                            "lng": record.get('lng', 0),
+                            "type": "visit",  # All logged locations from sheets are visits
+                            "location": record.get('location', 'Unknown Location'),
+                            "details": f"Visit: {record.get('contact_name', 'N/A')} | Orders: {record.get('orders', 0)}",
+                            "timestamp": record.get('timestamp', f"{date}T00:00:00"),
+                            "visit_type": record.get('visit_type') or 'other',  # Default to 'other' if empty
+                            "contact_name": record.get('contact_name', ''),
+                            "orders": record.get('orders', 0),
+                            "accuracy": 10,
+                            "speed": 0,
+                            "heading": 0
+                        })
+                    print(f"\n[SUCCESS] Returning {len(route_points)} REAL points from Google Sheets")
+                    print(f"   [INFO] MR {mr_id} will show ACTUAL logged locations")
+                    print("="*70 + "\n")
+                    logger.info(f"[OK] Returning {len(route_points)} real points from sheets for MR {mr_id}")
+                    return route_points
+                
+                # PRIORITY 3: Only use sample data if no sheets data either
+                print(f"\n[STEP 3] No real data found, generating sample data...")
+                print(f"   [INFO] Sheets had 0 records for MR {mr_id} on {date}")
+                logger.warning(f"⚠️ No live or sheets data for MR {mr_id}, returning sample points for demo")
+                
+                # Add MR ID to sample location names so they're at least unique
+                mr_suffix = f"(MR {mr_id})"
+                
+                # Sample Mumbai route points for testing - Make them slightly different per MR
+                # Use mr_id to create variation in coordinates
+                import random
+                random.seed(mr_id)  # Same MR always gets same variation
+                lat_offset = (random.random() - 0.5) * 0.05  # Small offset based on MR ID
+                lng_offset = (random.random() - 0.5) * 0.05
+                
+                print(f"   Using random seed: {mr_id}")
+                print(f"   Coordinate offset: lat {lat_offset:+.4f}, lng {lng_offset:+.4f}")
+                
                 sample_points = [
                     {
                         "time": "09:00",
-                        "lat": 19.0760,
-                        "lng": 72.8777,
+                        "lat": 19.0760 + lat_offset,
+                        "lng": 72.8777 + lng_offset,
                         "type": "start",
-                        "location": "MR Starting Point - Mumbai Central",
-                        "details": "Day started - First location",
+                        "location": f"Starting Point {mr_suffix}",
+                        "details": f"Day started for MR {mr_id}",
                         "timestamp": f"{date}T09:00:00",
                         "accuracy": 10,
                         "speed": 0,
@@ -479,11 +569,11 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
                     },
                     {
                         "time": "09:30",
-                        "lat": 19.0896,
-                        "lng": 72.8656,
+                        "lat": 19.0896 + lat_offset,
+                        "lng": 72.8656 + lng_offset,
                         "type": "visit",
-                        "location": "Hospital Visit - Bandra",
-                        "details": "Doctor consultation completed",
+                        "location": f"Hospital Visit {mr_suffix}",
+                        "details": f"Doctor consultation for MR {mr_id}",
                         "timestamp": f"{date}T09:30:00",
                         "accuracy": 8,
                         "speed": 25,
@@ -491,11 +581,11 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
                     },
                     {
                         "time": "11:00",
-                        "lat": 19.0544,
-                        "lng": 72.8311,
+                        "lat": 19.0544 + lat_offset,
+                        "lng": 72.8311 + lng_offset,
                         "type": "visit", 
-                        "location": "Pharmacy Visit - Worli",
-                        "details": "Product demonstration completed",
+                        "location": f"Pharmacy Visit {mr_suffix}",
+                        "details": f"Product demo for MR {mr_id}",
                         "timestamp": f"{date}T11:00:00",
                         "accuracy": 12,
                         "speed": 30,
@@ -503,11 +593,11 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
                     },
                     {
                         "time": "12:30",
-                        "lat": 19.0330,
-                        "lng": 72.8648,
+                        "lat": 19.0330 + lat_offset,
+                        "lng": 72.8648 + lng_offset,
                         "type": "visit",
-                        "location": "Clinic Visit - Tardeo", 
-                        "details": "Sample delivery and meeting",
+                        "location": f"Clinic Visit {mr_suffix}", 
+                        "details": f"Sample delivery for MR {mr_id}",
                         "timestamp": f"{date}T12:30:00",
                         "accuracy": 15,
                         "speed": 20,
@@ -515,11 +605,11 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
                     },
                     {
                         "time": "14:00",
-                        "lat": 19.0178,
-                        "lng": 72.8478,
+                        "lat": 19.0178 + lat_offset,
+                        "lng": 72.8478 + lng_offset,
                         "type": "movement",
-                        "location": "Travel to Colaba",
-                        "details": "En route to next appointment",
+                        "location": f"Travel Point {mr_suffix}",
+                        "details": f"En route for MR {mr_id}",
                         "timestamp": f"{date}T14:00:00", 
                         "accuracy": 10,
                         "speed": 35,
@@ -527,23 +617,31 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
                     },
                     {
                         "time": "15:30",
-                        "lat": 18.9067,
-                        "lng": 72.8147,
+                        "lat": 18.9067 + lat_offset,
+                        "lng": 72.8147 + lng_offset,
                         "type": "visit",
-                        "location": "Medical Store - Colaba",
-                        "details": "Final visit of the day completed",
+                        "location": f"Medical Store {mr_suffix}",
+                        "details": f"Final visit for MR {mr_id}",
                         "timestamp": f"{date}T15:30:00",
                         "accuracy": 8,
                         "speed": 0,
                         "heading": 225
                     }
                 ]
-                logger.info(f"Returning {len(sample_points)} sample route points for MR {mr_id} on {date}")
+                print(f"\n[SAMPLE] Generated {len(sample_points)} sample points with MR-specific variation")
+                print(f"   [GPS] First point: ({sample_points[0]['lat']:.4f}, {sample_points[0]['lng']:.4f})")
+                print(f"   [LOC] Location: {sample_points[0]['location']}")
+                print("="*70 + "\n")
+                logger.info(f"📍 Returning {len(sample_points)} SAMPLE route points for MR {mr_id} on {date} (no real data available)")
                 return sample_points
             
             # Convert live trail to route format
+            print(f"\n[SUCCESS] FOUND LIVE TRACKING DATA!")
+            print(f"   [COUNT] Live trail points: {len(live_trail)}")
             route_points = []
             for i, point in enumerate(live_trail):
+                if i == 0:
+                    print(f"   [GPS] First live point: ({point['lat']}, {point['lng']}) at {point['timestamp']}")
                 route_points.append({
                     "time": datetime.fromisoformat(point['timestamp'].replace('Z', '')).strftime("%H:%M"),
                     "lat": point['lat'],
@@ -557,14 +655,71 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
                     "heading": point['heading']
                 })
             
+            print(f"\n[SUCCESS] Returning {len(route_points)} live tracking points")
+            print("="*70 + "\n")
             return route_points
         else:
-            # Get historical data from sheets
-            # TODO: Implement sheets integration for historical data
-            logger.info(f"Date {date} is not today ({today}), returning empty historical data")
-            return []
+            # Get historical data from Google Sheets
+            print(f"\n[HISTORY] Date is NOT today - fetching HISTORICAL data")
+            print(f"   [DATE] Requested: {date}, Today: {today}")
+            logger.info(f"📅 Fetching historical data for MR {mr_id} on {date}")
+            
+            try:
+                # Use sheets manager to get historical route data
+                print(f"   [CALL] sheets_manager.get_mr_route_data('{mr_id}', '{date}')")
+                historical_data = sheets_manager.get_mr_route_data(str(mr_id), date)
+                print(f"[SHEETS] Returned: {len(historical_data) if historical_data else 0} historical records")
+                logger.info(f"[INFO] Found {len(historical_data)} historical records from sheets")
+                
+                if not historical_data:
+                    print(f"[WARN] No historical data found in sheets for MR {mr_id} on {date}")
+                    print("="*70 + "\n")
+                    logger.warning(f"[WARN] No historical data found for MR {mr_id} on {date}")
+                    return []
+                
+                # Transform sheets data to route format
+                print(f"\n[TRANSFORM] Converting {len(historical_data)} historical records...")
+                route_points = []
+                for idx, record in enumerate(historical_data):
+                    if idx == 0:
+                        print(f"   [REC 1] {record.get('location', 'N/A')} at ({record.get('lat', 0)}, {record.get('lng', 0)})")
+                    # Sheets returns: {timestamp, lat, lng, location, visit_type, contact_name, orders}
+                    # FIXED: All historical data from sheets should be marked as visits
+                    route_points.append({
+                        "time": record.get('timestamp', '').split('T')[1][:5] if 'T' in record.get('timestamp', '') else '00:00',
+                        "lat": record.get('lat', 0),
+                        "lng": record.get('lng', 0),
+                        "type": "visit",  # All logged locations from sheets are visits
+                        "location": record.get('location', 'Unknown Location'),
+                        "details": f"Visit: {record.get('contact_name', 'N/A')} | Orders: {record.get('orders', 0)}",
+                        "timestamp": record.get('timestamp', f"{date}T00:00:00"),
+                        "visit_type": record.get('visit_type') or 'other',  # Default to 'other' if empty
+                        "contact_name": record.get('contact_name', ''),
+                        "orders": record.get('orders', 0),
+                        "accuracy": 10,  # Sheets data is verified
+                        "speed": 0,
+                        "heading": 0
+                    })
+                
+                print(f"\n[SUCCESS] Returning {len(route_points)} HISTORICAL points from sheets")
+                print(f"   [INFO] MR {mr_id} showing data from {date}")
+                print("="*70 + "\n")
+                logger.info(f"[OK] Transformed {len(route_points)} historical points for MR {mr_id} on {date}")
+                return route_points
+                
+            except Exception as e:
+                print(f"\n[ERROR] ERROR in historical data fetch: {e}")
+                print(f"   [TYPE] Exception type: {type(e).__name__}")
+                print(f"   [DETAIL] Exception details: {str(e)}")
+                print("="*70 + "\n")
+                logger.error(f"[ERROR] Error fetching historical data: {e}")
+                return []
             
     except Exception as e:
+        print(f"\n[CRITICAL] ERROR in get_enhanced_route_data: {e}")
+        print(f"   [TYPE] Exception type: {type(e).__name__}")
+        print(f"   [DETAIL] Full error: {str(e)}")
+        print("="*70 + "\n")
         logger.error(f"Error getting enhanced route data: {e}")
         return []
 
@@ -722,15 +877,10 @@ async def get_analytics(
         total_distance = sum(mr.get('distance_today', 0) for mr in mrs_data)
 
         # Get today's data for more accurate metrics
+        # OPTIMIZED: Use pre-calculated values from get_all_mrs() instead of querying each MR
         today = datetime.now().strftime("%Y-%m-%d")
-        today_visits = 0
-        today_distance = 0
-
-        for mr in mrs_data:
-            mr_id = mr.get('mr_id')
-            route_data = sheets_manager.get_mr_route_data(mr_id, today)
-            today_visits += len([r for r in route_data if r.get('visit_type')])
-            today_distance += sum([0.5 for _ in route_data])
+        today_visits = sum(mr.get('total_visits', 0) for mr in mrs_data)  # Already calculated
+        today_distance = sum(mr.get('distance_today', 0) for mr in mrs_data)  # Already calculated
 
         analytics = {
             "period": period,
@@ -847,26 +997,79 @@ async def get_route_blueprint(
     date: Optional[str] = None,
     api_key: str = Depends(verify_api_key)
 ):
-    """Get route blueprint for entire team"""
+    """Get route blueprint - creates REAL blueprint from actual route data"""
     
     try:
-        try:
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            from visit_based_location_tracker import get_mr_route_blueprint
-            blueprint = await get_mr_route_blueprint(str(mr_id), date)
-        except ImportError:
-            # Fallback if module not available
-            blueprint = {
-                "route_points": [],
-                "estimated_duration": "8 hours",
-                "total_distance": "45.2 km",
-                "recommended_stops": []
-            }
-        
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
+        
+        logger.info(f"🗺️ Creating route blueprint for MR {mr_id} on {date}")
+        
+        # Get actual route data
+        route_points = await get_enhanced_route_data(mr_id, date)
+        
+        if not route_points:
+            logger.warning(f"⚠️ No route data found to create blueprint for MR {mr_id} on {date}")
+            return {
+                "success": False,
+                "error": "No route data available for this date",
+                "mr_id": mr_id,
+                "date": date,
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # Create REAL blueprint from actual data
+        visits = [p for p in route_points if p.get('type') == 'visit']
+        
+        # Calculate real statistics
+        stats = calculate_enhanced_route_stats(route_points)
+        
+        # Build blueprint
+        blueprint = {
+            "mr_id": str(mr_id),
+            "date": date,
+            "total_visits": len(visits),
+            "total_points": len(route_points),
+            "total_distance_km": stats.get('distance_km', 0),
+            "active_hours": stats.get('active_hours', 0),
+            
+            # Route points
+            "route_points": route_points,
+            
+            # Visit locations
+            "visit_locations": [
+                {
+                    "sequence": i + 1,
+                    "location_name": v.get('location', 'Unknown'),
+                    "latitude": v.get('lat', 0),
+                    "longitude": v.get('lng', 0),
+                    "time": v.get('time', '00:00'),
+                    "visit_type": v.get('visit_type', 'unknown'),
+                    "details": v.get('details', '')
+                }
+                for i, v in enumerate(visits)
+            ],
+            
+            # Route summary
+            "start_location": route_points[0] if route_points else None,
+            "end_location": route_points[-1] if route_points else None,
+            "start_time": route_points[0].get('time', '00:00') if route_points else None,
+            "end_time": route_points[-1].get('time', '00:00') if route_points else None,
+            
+            # Coverage areas (unique locations)
+            "coverage_areas": list(set([p.get('location', 'Unknown') for p in route_points if p.get('location')])),
+            
+            # Efficiency metrics
+            "route_efficiency": min(100, (len(visits) * 10) + 50),  # Simple calculation
+            "avg_speed_kmh": stats.get('avg_speed', 0),
+            "max_speed_kmh": stats.get('max_speed', 0),
+            
+            # Data source
+            "data_source": "Google Sheets" if date != datetime.now().strftime("%Y-%m-%d") else "Live Tracking",
+            "created_at": datetime.now().isoformat()
+        }
+        
+        logger.info(f"✅ Created blueprint with {len(visits)} visits and {len(route_points)} total points")
         
         return {
             "success": True,
@@ -875,12 +1078,12 @@ async def get_route_blueprint(
             "blueprint": blueprint,
             "timestamp": datetime.now().isoformat()
         }
+        
     except Exception as e:
-        logger.error(f"Error getting route blueprint: {e}")
-        # Return structured error response instead of raising exception
+        logger.error(f"❌ Error creating route blueprint: {e}")
         return {
             "success": False,
-            "error": "Route blueprint temporarily unavailable",
+            "error": f"Failed to create blueprint: {str(e)}",
             "mr_id": mr_id,
             "date": date or datetime.now().strftime("%Y-%m-%d"),
             "timestamp": datetime.now().isoformat()

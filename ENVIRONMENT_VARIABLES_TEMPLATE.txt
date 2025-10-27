@@ -1,0 +1,52 @@
+# PRODUCTION ENVIRONMENT VARIABLES TEMPLATE
+# Copy these to your .env file and replace with actual values
+
+# =============================================================================
+# CRITICAL: Generate strong random values for production!
+# Command: python -c "import secrets; print(secrets.token_urlsafe(32))"
+# =============================================================================
+
+# JWT Authentication
+JWT_SECRET_KEY=your-super-secure-jwt-secret-here-32-chars-minimum
+
+# API Security  
+API_KEY=your-secure-api-key-here-NOT-mr-tracking-2025
+API_SALT=your-unique-salt-here
+
+# Database Encryption
+DATABASE_ENCRYPTION_KEY=your-fernet-key-here-32-chars
+
+# Telegram Bot (Get from @BotFather)
+MR_BOT_TOKEN=1234567890:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+# Google Sheets (Service Account)
+GOOGLE_SHEETS_CREDENTIALS=pharmagiftapp-60fb5a6a3ca9.json
+MR_SPREADSHEET_ID=1abcdefghijklmnopqrstuvwxyz
+
+# Production Settings
+ENVIRONMENT=production
+ALLOWED_HOSTS=yourdomain.com,app.yourdomain.com
+CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+
+# Rate Limiting (Install Redis)
+REDIS_URL=redis://localhost:6379/0
+
+# Monitoring & Error Tracking
+SENTRY_DSN=https://your-sentry-dsn-here
+LOG_LEVEL=INFO
+
+# User Management
+AUTHORIZED_MR_IDS=1201911108,8393304686,5901220876
+ADMIN_ID=1201911108
+
+# Session Configuration
+SESSION_DURATION=900
+MAX_ENTRIES_PER_SESSION=20
+
+# =============================================================================
+# QUICK SETUP COMMANDS:
+# =============================================================================
+# 1. Generate API Key: python -c "import secrets; print(secrets.token_urlsafe(32))"
+# 2. Generate JWT Secret: python -c "import secrets; print(secrets.token_urlsafe(32))"
+# 3. Generate Salt: python -c "import secrets; print(secrets.token_urlsafe(16))"
+# 4. Generate Fernet Key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

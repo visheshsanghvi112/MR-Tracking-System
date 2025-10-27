@@ -1,0 +1,32 @@
+# Additional Security Dependencies
+# Add these to your existing requirements.txt
+
+# Authentication & Authorization
+PyJWT==2.8.0
+bcrypt==4.0.1
+python-jose[cryptography]==3.3.0
+
+# Rate Limiting
+redis==5.0.1
+slowapi==0.1.8
+
+# Data Encryption
+cryptography==41.0.7
+
+# Input Validation & Sanitization
+pydantic==2.4.2
+email-validator==2.1.0
+python-multipart==0.0.6
+
+# Security Headers & HTTPS
+secure==0.3.0
+
+# Monitoring & Logging
+sentry-sdk[fastapi]==1.38.0
+
+# Environment Security
+python-dotenv==1.0.0
+
+# Additional FastAPI Security
+python-multipart==0.0.6
+passlib[bcrypt]==1.7.4

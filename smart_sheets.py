@@ -701,32 +701,57 @@ class SmartMRSheetsManager:
                     if date and record.get('Date') != date:
                         continue
 
-                    # CORRECT GPS coordinate mapping:
-                    # GPS_Lat field = latitude, GPS_Lon field = longitude, Location field = address
-                    gps_lat_field = record.get('GPS_Lat', '')    # Contains latitude
-                    gps_lon_field = record.get('GPS_Lon', '')    # Contains longitude
-                    location_field = record.get('Location', '')  # Contains address/location name
-                    remarks = record.get('Remarks', '')          # Might contain additional info
+                    # GPS COORDINATE EXTRACTION - FIXED FOR YOUR SHEET FORMAT
+                    # Your sheets have coords in Remarks: "Lat: X, Lon: Y"
+                    remarks = record.get('Remarks', '')
+                    location_field = record.get('Location', '')  # Might be lat or address
+                    
+                    lat = 0
+                    lon = 0
 
-                    # Parse coordinates safely
-                    try:
-                        lat = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
-                        lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
-
-                        # If still no coordinates, try parsing from Remarks field
-                        if (lat == 0 or lon == 0) and remarks:
-                            # Parse format like "Lat: 18.947962, Lon: 72.829974"
-                            if "Lat:" in remarks and "Lon:" in remarks:
-                                try:
-                                    lat_str = remarks.split("Lat:")[1].split(",")[0].strip()
-                                    lon_str = remarks.split("Lon:")[1].strip()
-                                    lat = float(lat_str)
-                                    lon = float(lon_str)
-                                except:
-                                    pass
-
-                    except (ValueError, TypeError):
-                        lat, lon = 0, 0
+                    # PRIORITY 1: Try Remarks field first (most reliable)
+                    if remarks and "Lat:" in remarks and "Lon:" in remarks:
+                        try:
+                            lat_str = remarks.split("Lat:")[1].split(",")[0].strip()
+                            lon_str = remarks.split("Lon:")[1].strip()
+                            lat = float(lat_str)
+                            lon = float(lon_str)
+                            print(f"[DEBUG] Parsed from Remarks: lat={lat}, lon={lon}")
+                        except Exception as e:
+                            print(f"[DEBUG] Remarks parse failed: {e}")
+                            lat, lon = 0, 0
+                    
+                    # PRIORITY 2: If Remarks didn't work, try other fields
+                    if lat == 0 or lon == 0:
+                        try:
+                            # Try GPS_Lat and GPS_Lon (might be swapped or wrong)
+                            gps_lat_field = record.get('GPS_Lat', '')
+                            gps_lon_field = record.get('GPS_Lon', '')
+                            
+                            # Try to parse, but validate range
+                            temp_lat = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
+                            temp_lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
+                            
+                            # Check if they make sense (lat should be -90 to 90, lon -180 to 180)
+                            if -90 <= temp_lat <= 90 and -180 <= temp_lon <= 180:
+                                lat, lon = temp_lat, temp_lon
+                                print(f"[DEBUG] Used GPS_Lat/GPS_Lon: lat={lat}, lon={lon}")
+                            else:
+                                # Might be swapped - try Location field as lat
+                                if location_field:
+                                    try:
+                                        temp_lat = float(location_field)
+                                        if -90 <= temp_lat <= 90:
+                                            lat = temp_lat
+                                            # GPS_Lat might actually be longitude
+                                            if -180 <= temp_lat <= 180:
+                                                lon = float(gps_lat_field) if gps_lat_field else 0
+                                            print(f"[DEBUG] Swapped columns detected: lat={lat}, lon={lon}")
+                                    except:
+                                        pass
+                        except (ValueError, TypeError) as e:
+                            print(f"[DEBUG] Column parse failed: {e}")
+                            lat, lon = 0, 0
 
                     if lat and lon and -90 <= lat <= 90 and -180 <= lon <= 180:
                         # Get proper location name

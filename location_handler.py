@@ -4,6 +4,7 @@ Handles GPS location capture and geocoding
 """
 import asyncio
 import logging
+import requests
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -15,15 +16,46 @@ class LocationHandler:
         self.geocoding_api_key = None  # Will be set from config
         
     async def get_address(self, latitude: float, longitude: float) -> str:
-        """Get address from GPS coordinates using reverse geocoding"""
+        """Get address from GPS coordinates using free Nominatim API"""
         try:
-            # For now, return a basic format
-            # Can be enhanced with Google Geocoding API later
-            return f"Lat: {latitude:.6f}, Lon: {longitude:.6f}"
+            # Use OpenStreetMap Nominatim API (completely free)
+            url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&zoom=18&addressdetails=1"
+            headers = {
+                'User-Agent': 'MRBot/1.0 (contact@mrbot.app)'  # Required by Nominatim
+            }
             
+            # Make the request with timeout
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if 'display_name' in data:
+                    address = data['display_name']
+                    
+                    # Clean up and shorten the address if too long
+                    if len(address) > 150:
+                        address = address[:150] + "..."
+                    
+                    logger.info(f"NOMINATIM_SUCCESS: {address}")
+                    return address
+                elif 'error' in data:
+                    logger.warning(f"NOMINATIM_ERROR: {data['error']}")
+            else:
+                logger.warning(f"NOMINATIM_HTTP_ERROR: Status {response.status_code}")
+            
+            # Fallback to coordinates if API fails
+            logger.warning("Nominatim API failed, using coordinates")
+            return f"📍 {latitude:.6f}, {longitude:.6f}"
+            
+        except requests.exceptions.Timeout:
+            logger.warning("Nominatim API timeout, using coordinates")
+            return f"📍 {latitude:.6f}, {longitude:.6f}"
+        except requests.exceptions.RequestException as e:
+            logger.error(f"NOMINATIM_REQUEST_ERROR: {e}")
+            return f"📍 {latitude:.6f}, {longitude:.6f}"
         except Exception as e:
-            logger.error(f"Error getting address: {e}")
-            return f"Location: {latitude:.4f}, {longitude:.4f}"
+            logger.error(f"GEOCODING_ERROR: {e}")
+            return f"📍 {latitude:.4f}, {longitude:.4f}"
             
     def validate_location_accuracy(self, accuracy: float) -> bool:
         """Validate if location accuracy is acceptable"""
@@ -60,24 +92,54 @@ class LocationHandler:
         return distance > threshold  # More than 50 meters apart
         
     async def enhance_location_with_geocoding(self, latitude: float, longitude: float) -> dict:
-        """Get detailed location information using geocoding API"""
+        """Get detailed location information using Nominatim API"""
         try:
-            # This is a placeholder for geocoding API integration
-            # Can be enhanced with Google Geocoding API, OpenStreetMap, etc.
+            # Use OpenStreetMap Nominatim API for detailed location info
+            url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&zoom=18&addressdetails=1"
+            headers = {
+                'User-Agent': 'MRBot/1.0 (contact@mrbot.app)'
+            }
             
-            # For now, return basic info
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if 'display_name' in data:
+                    # Extract detailed address components
+                    address_parts = data.get('address', {})
+                    
+                    return {
+                        'formatted_address': data.get('display_name', f"📍 {latitude:.6f}, {longitude:.6f}"),
+                        'city': (address_parts.get('city') or 
+                                address_parts.get('town') or 
+                                address_parts.get('village') or 
+                                'Unknown City'),
+                        'state': (address_parts.get('state') or 
+                                 address_parts.get('province') or 
+                                 'Unknown State'),
+                        'country': address_parts.get('country', 'Unknown Country'),
+                        'postal_code': address_parts.get('postcode', 'Unknown'),
+                        'accuracy': 'high',
+                        'source': 'nominatim'
+                    }
+            
+            # Fallback if API fails
+            logger.warning("Nominatim enhance API failed, using basic info")
             return {
-                'formatted_address': f"Lat: {latitude:.6f}, Lon: {longitude:.6f}",
+                'formatted_address': f"📍 {latitude:.6f}, {longitude:.6f}",
                 'city': 'Unknown City',
                 'state': 'Unknown State',
                 'country': 'Unknown Country',
                 'postal_code': 'Unknown',
-                'accuracy': 'high'
+                'accuracy': 'low',
+                'source': 'coordinates'
             }
             
         except Exception as e:
             logger.error(f"Error enhancing location: {e}")
             return {
-                'formatted_address': f"Location: {latitude:.4f}, {longitude:.4f}",
-                'accuracy': 'low'
+                'formatted_address': f"📍 {latitude:.4f}, {longitude:.4f}",
+                'accuracy': 'low',
+                'source': 'fallback'
             }
