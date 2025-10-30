@@ -536,104 +536,13 @@ async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
                     logger.info(f"[OK] Returning {len(route_points)} real points from sheets for MR {mr_id}")
                     return route_points
                 
-                # PRIORITY 3: Only use sample data if no sheets data either
-                print(f"\n[STEP 3] No real data found, generating sample data...")
+                # PRIORITY 3: No data found - return empty array instead of fake data
+                print(f"\n[INFO] No real data found for MR {mr_id} on {date}")
                 print(f"   [INFO] Sheets had 0 records for MR {mr_id} on {date}")
-                logger.warning(f"⚠️ No live or sheets data for MR {mr_id}, returning sample points for demo")
-                
-                # Add MR ID to sample location names so they're at least unique
-                mr_suffix = f"(MR {mr_id})"
-                
-                # Sample Mumbai route points for testing - Make them slightly different per MR
-                # Use mr_id to create variation in coordinates
-                import random
-                random.seed(mr_id)  # Same MR always gets same variation
-                lat_offset = (random.random() - 0.5) * 0.05  # Small offset based on MR ID
-                lng_offset = (random.random() - 0.5) * 0.05
-                
-                print(f"   Using random seed: {mr_id}")
-                print(f"   Coordinate offset: lat {lat_offset:+.4f}, lng {lng_offset:+.4f}")
-                
-                sample_points = [
-                    {
-                        "time": "09:00",
-                        "lat": 19.0760 + lat_offset,
-                        "lng": 72.8777 + lng_offset,
-                        "type": "start",
-                        "location": f"Starting Point {mr_suffix}",
-                        "details": f"Day started for MR {mr_id}",
-                        "timestamp": f"{date}T09:00:00",
-                        "accuracy": 10,
-                        "speed": 0,
-                        "heading": 0
-                    },
-                    {
-                        "time": "09:30",
-                        "lat": 19.0896 + lat_offset,
-                        "lng": 72.8656 + lng_offset,
-                        "type": "visit",
-                        "location": f"Hospital Visit {mr_suffix}",
-                        "details": f"Doctor consultation for MR {mr_id}",
-                        "timestamp": f"{date}T09:30:00",
-                        "accuracy": 8,
-                        "speed": 25,
-                        "heading": 45
-                    },
-                    {
-                        "time": "11:00",
-                        "lat": 19.0544 + lat_offset,
-                        "lng": 72.8311 + lng_offset,
-                        "type": "visit", 
-                        "location": f"Pharmacy Visit {mr_suffix}",
-                        "details": f"Product demo for MR {mr_id}",
-                        "timestamp": f"{date}T11:00:00",
-                        "accuracy": 12,
-                        "speed": 30,
-                        "heading": 90
-                    },
-                    {
-                        "time": "12:30",
-                        "lat": 19.0330 + lat_offset,
-                        "lng": 72.8648 + lng_offset,
-                        "type": "visit",
-                        "location": f"Clinic Visit {mr_suffix}", 
-                        "details": f"Sample delivery for MR {mr_id}",
-                        "timestamp": f"{date}T12:30:00",
-                        "accuracy": 15,
-                        "speed": 20,
-                        "heading": 135
-                    },
-                    {
-                        "time": "14:00",
-                        "lat": 19.0178 + lat_offset,
-                        "lng": 72.8478 + lng_offset,
-                        "type": "movement",
-                        "location": f"Travel Point {mr_suffix}",
-                        "details": f"En route for MR {mr_id}",
-                        "timestamp": f"{date}T14:00:00", 
-                        "accuracy": 10,
-                        "speed": 35,
-                        "heading": 180
-                    },
-                    {
-                        "time": "15:30",
-                        "lat": 18.9067 + lat_offset,
-                        "lng": 72.8147 + lng_offset,
-                        "type": "visit",
-                        "location": f"Medical Store {mr_suffix}",
-                        "details": f"Final visit for MR {mr_id}",
-                        "timestamp": f"{date}T15:30:00",
-                        "accuracy": 8,
-                        "speed": 0,
-                        "heading": 225
-                    }
-                ]
-                print(f"\n[SAMPLE] Generated {len(sample_points)} sample points with MR-specific variation")
-                print(f"   [GPS] First point: ({sample_points[0]['lat']:.4f}, {sample_points[0]['lng']:.4f})")
-                print(f"   [LOC] Location: {sample_points[0]['location']}")
+                print(f"   [INFO] Returning empty array (no sample/fake data)")
                 print("="*70 + "\n")
-                logger.info(f"📍 Returning {len(sample_points)} SAMPLE route points for MR {mr_id} on {date} (no real data available)")
-                return sample_points
+                logger.info(f"📭 No data available for MR {mr_id} on {date} - returning empty result")
+                return []  # Return empty array instead of fake Mumbai data
             
             # Convert live trail to route format
             print(f"\n[SUCCESS] FOUND LIVE TRACKING DATA!")

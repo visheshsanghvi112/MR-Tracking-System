@@ -733,22 +733,24 @@ class SmartMRSheetsManager:
                             temp_lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
                             
                             # Check if they make sense (lat should be -90 to 90, lon -180 to 180)
+                            # For India: lat ~8-37, lon ~68-97
                             if -90 <= temp_lat <= 90 and -180 <= temp_lon <= 180:
-                                lat, lon = temp_lat, temp_lon
-                                print(f"[DEBUG] Used GPS_Lat/GPS_Lon: lat={lat}, lon={lon}")
+                                # Additional validation for India: check reasonable ranges
+                                # If values are in wrong ranges, they might be swapped
+                                if (8 <= temp_lat <= 37 and 68 <= temp_lon <= 97):
+                                    # Valid India coordinates - use as is
+                                    lat, lon = temp_lat, temp_lon
+                                    print(f"[DEBUG] Used GPS_Lat/GPS_Lon (India): lat={lat}, lon={lon}")
+                                elif (8 <= temp_lon <= 37 and 68 <= temp_lat <= 97):
+                                    # SWAPPED! lat/lon are reversed
+                                    lat, lon = temp_lon, temp_lat
+                                    print(f"[DEBUG] SWAPPED GPS coordinates: lat={lat}, lon={lon}")
+                                else:
+                                    # Values are valid but not in India - might be correct
+                                    lat, lon = temp_lat, temp_lon
+                                    print(f"[DEBUG] Used GPS_Lat/GPS_Lon (global): lat={lat}, lon={lon}")
                             else:
-                                # Might be swapped - try Location field as lat
-                                if location_field:
-                                    try:
-                                        temp_lat = float(location_field)
-                                        if -90 <= temp_lat <= 90:
-                                            lat = temp_lat
-                                            # GPS_Lat might actually be longitude
-                                            if -180 <= temp_lat <= 180:
-                                                lon = float(gps_lat_field) if gps_lat_field else 0
-                                            print(f"[DEBUG] Swapped columns detected: lat={lat}, lon={lon}")
-                                    except:
-                                        pass
+                                print(f"[DEBUG] Invalid coordinate ranges: lat={temp_lat}, lon={temp_lon}")
                         except (ValueError, TypeError) as e:
                             print(f"[DEBUG] Column parse failed: {e}")
                             lat, lon = 0, 0
