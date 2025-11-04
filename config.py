@@ -61,3 +61,13 @@ MIN_LOCATION_ACCURACY = 100  # meters
 # Logging
 LOG_LEVEL = "INFO"
 LOG_FILE = "mr_bot.log"
+
+# Selfie archival to Google Drive (optional)
+# Provide the folder ID where selfies will be uploaded.
+# Sharing can be 'restricted' or 'anyone_with_link'.
+SELFIE_DRIVE_FOLDER_ID = os.getenv('SELFIE_DRIVE_FOLDER_ID', '1TIUHRzYkbGQhmmDcPoIfk1QNxHtEKgMf')
+SELFIE_DRIVE_SHARING = os.getenv('SELFIE_DRIVE_SHARING', 'anyone_with_link')
+
+# OAuth uploading to personal My Drive (if true, uses token.json)
+DRIVE_OAUTH_ENABLED = os.getenv('DRIVE_OAUTH_ENABLED', 'false').lower() == 'true'
+DRIVE_OAUTH_TOKEN_FILE = os.getenv('DRIVE_OAUTH_TOKEN_FILE', 'token.json')

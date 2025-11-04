@@ -300,6 +300,74 @@ class SmartMRSheetsManager:
         except Exception as e:
             logger.error(f"Error logging location capture: {e}")
             return False
+
+    # ==================== SELFIE VERIFICATION ====================
+    def _ensure_selfie_sheet(self):
+        """Ensure a dedicated sheet exists for selfie verifications."""
+        try:
+            if not hasattr(self, 'selfie_sheet') or not self.selfie_sheet:
+                sheet_name = 'Selfie_Verifications'
+                worksheet = None
+                try:
+                    worksheet = self.spreadsheet.worksheet(sheet_name)
+                except Exception:
+                    worksheet = self.spreadsheet.add_worksheet(title=sheet_name, rows=1000, cols=20)
+                    headers = [
+                        'Timestamp','Date','Time','MR_ID','MR_Name','Location','GPS_Lat','GPS_Lon',
+                        'Media_Type','File_ID','Verification_Status','Geofence_Status','Distance_M','Notes','Selfie_URL'
+                    ]
+                    # 15 columns -> A through O
+                    worksheet.update('A1:O1', [headers])
+                self.selfie_sheet = worksheet
+        except Exception as e:
+            logger.error(f"Error ensuring selfie sheet: {e}")
+            self.selfie_sheet = None
+
+    def log_selfie_verification(
+        self,
+        user_id: int,
+        media_type: str,
+        file_id: str,
+        verification_status: str = 'Pending',
+        geofence_status: str = 'Unknown',
+        distance_m: float = 0.0,
+        notes: str = '',
+        gps_lat: float = 0.0,
+        gps_lon: float = 0.0,
+        location: str = '',
+        selfie_url: str = ''
+    ) -> bool:
+        """Append a selfie verification record to Google Sheets."""
+        try:
+            self._ensure_selfie_sheet()
+            if not getattr(self, 'selfie_sheet', None):
+                return False
+            from datetime import datetime
+            from utils import get_mr_name
+            now = datetime.now()
+            mr_name = get_mr_name(user_id)
+            row = [
+                now.strftime('%Y-%m-%d %H:%M:%S'),
+                now.strftime('%Y-%m-%d'),
+                now.strftime('%H:%M:%S'),
+                user_id,
+                mr_name,
+                location,
+                gps_lat,
+                gps_lon,
+                media_type,
+                file_id,
+                verification_status,
+                geofence_status,
+                float(distance_m),
+                notes,
+                selfie_url
+            ]
+            self.selfie_sheet.append_row(row)
+            return True
+        except Exception as e:
+            logger.error(f"Error logging selfie verification: {e}")
+            return False
             
     def log_location_session(self, user_id: int, lat: float, lon: float, address: str, user_data: dict = None):
         """Log location session to Location_Log sheet"""

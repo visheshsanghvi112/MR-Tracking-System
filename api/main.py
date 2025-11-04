@@ -296,6 +296,26 @@ async def get_location_trail(
         logger.error(f"Error getting location trail: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get trail: {str(e)}")
 
+# ============= VERIFICATION (SELFIE) =============
+
+@app.get("/api/verification/selfies")
+async def list_selfies(mr_id: Optional[int] = None, limit: int = 20, api_key: str = Depends(verify_api_key)):
+    """List recent selfie verification metadata (from local JSON if present)."""
+    try:
+        data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'mr_bot', 'data', 'selfie_checks.json')
+        if not os.path.exists(data_path):
+            return {"success": True, "items": [], "count": 0}
+        with open(data_path, 'r', encoding='utf-8') as f:
+            items = json.load(f) or []
+        if mr_id is not None:
+            items = [i for i in items if str(i.get('user_id')) == str(mr_id)]
+        # Sort by timestamp desc
+        items.sort(key=lambda x: x.get('timestamp',''), reverse=True)
+        return {"success": True, "items": items[:max(1, min(limit, 200))], "count": len(items[:limit])}
+    except Exception as e:
+        logger.error(f"Error listing selfies: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list selfies")
+
 # ============= ANALYTICS =============
 
 @app.get("/api/analytics/{mr_id}")

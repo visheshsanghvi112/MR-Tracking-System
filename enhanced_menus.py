@@ -71,6 +71,7 @@ class MRMenuManager:
             # Main actions - bigger buttons, clearer labels
             [InlineKeyboardButton("🏥 Log Doctor Visit", callback_data="menu_visit_types")],
             [InlineKeyboardButton("💰 Add Expense", callback_data="menu_expense_types")],
+            [InlineKeyboardButton("📸 Check-in (Selfie)", callback_data="quick_checkin")],
             
             # Quick actions
             [InlineKeyboardButton("📊 Session Status", callback_data="quick_status"),

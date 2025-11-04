@@ -92,12 +92,16 @@ class MRBot:
         self.application.add_handler(CommandHandler("location", commands_handler.capture_location_command))
         self.application.add_handler(CommandHandler("visit", commands_handler.log_visit_command))
         self.application.add_handler(CommandHandler("admin", commands_handler.admin_command))
+        # Visit verification flow (check-in with selfie)
+        self.application.add_handler(CommandHandler("checkin", commands_handler.start_checkin))
         
         # Add callback query handler for inline keyboards
         self.application.add_handler(CallbackQueryHandler(commands_handler.handle_callback_query))
         
         # Add message handlers
         self.application.add_handler(MessageHandler(filters.LOCATION, commands_handler.handle_location))
+        # Media handlers for selfie/liveness capture
+        self.application.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO | filters.VIDEO_NOTE, commands_handler.handle_selfie_media))
         self.application.add_handler(MessageHandler(filters.TEXT, self.handle_text_message))
         
         # Add error handler

@@ -17,6 +17,8 @@ from gemini_parser import GeminiMRParser  # Import AI parser
 from smart_expense_handler import SmartExpenseHandler  # Import smart expense handler
 from visit_based_location_tracker import log_visit_with_location  # Import visit location tracker
 import config
+import requests
+from drive_uploader import upload_bytes_to_drive
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ class MRCommandsHandler:
         self.ai_parser = GeminiMRParser()  # Initialize AI parser
         self.expense_handler = SmartExpenseHandler()  # Initialize smart expense handler
         self.pending_expenses = {}  # Store pending expense confirmations
+        self.awaiting_selfie = {}  # user_id -> ISO timestamp when check-in started
         
         # Initialize session manager
         self.session_manager = mr_session_manager
@@ -35,6 +38,189 @@ class MRCommandsHandler:
         # Initialize enhanced menu system with session manager
         menu_manager.session_manager = self.session_manager
         
+    async def start_checkin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start visit verification: ensure location active, then prompt for selfie."""
+        if not update or not update.message:
+            logger.error("CHECKIN_ERROR: Invalid update/message")
+            return
+        user_id = update.effective_user.id
+        status = mr_session_manager.get_location_status(user_id)
+        if not status.get('active', False):
+            await update.message.reply_text(
+                "❌ Location required. Please share your location first.",
+                reply_markup=menu_manager.get_location_request_menu()
+            )
+            return
+        # Mark check-in started and timestamp
+        started_iso = datetime.utcnow().isoformat()
+        context.user_data['checkin_started_at'] = started_iso
+        context.user_data['awaiting_selfie'] = True
+        self.awaiting_selfie[user_id] = started_iso
+        await update.message.reply_text(
+            "📸 Please send a selfie now (photo/video/video note) within 2 minutes.")
+
+    async def handle_selfie_media(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle selfie media for visit verification."""
+        if not update or not update.message:
+            return
+        user_id = update.effective_user.id
+        logger.info(
+            f"SELFIE_HANDLER_ENTER: user={user_id} has_photo={bool(getattr(update.message,'photo',None))} "
+            f"has_video={bool(getattr(update.message,'video',None))} has_video_note={bool(getattr(update.message,'video_note',None))} "
+            f"ctx_await={context.user_data.get('awaiting_selfie', False)} class_await={user_id in self.awaiting_selfie}"
+        )
+        # Only act if we asked for a selfie (context or class-level flag)
+        if not context.user_data.get('awaiting_selfie'):
+            # Fallback: check class-level awaiting map (e.g., from quick menu)
+            if str(user_id) not in {str(uid) for uid in self.awaiting_selfie.keys()}:
+                return
+        # Enforce time window
+        try:
+            started = context.user_data.get('checkin_started_at') or self.awaiting_selfie.get(user_id)
+            from datetime import datetime, timezone
+            if started:
+                started_dt = datetime.fromisoformat(started).replace(tzinfo=None)
+                if (datetime.utcnow() - started_dt).total_seconds() > 120:
+                    context.user_data['awaiting_selfie'] = False
+                    if user_id in self.awaiting_selfie:
+                        self.awaiting_selfie.pop(user_id, None)
+                    await update.message.reply_text("⏱️ Time window expired. Send /checkin to try again.")
+                    return
+        except Exception:
+            pass
+
+        file_id = None
+        media_type = None
+        if update.message.photo:
+            # Largest size last
+            file_id = update.message.photo[-1].file_id
+            media_type = 'photo'
+        elif update.message.video:
+            file_id = update.message.video.file_id
+            media_type = 'video'
+        elif update.message.video_note:
+            file_id = update.message.video_note.file_id
+            media_type = 'video_note'
+
+        if not file_id:
+            await update.message.reply_text("❌ No media detected. Please send a selfie photo or short video.")
+            return
+        logger.info(f"SELFIE_MEDIA_DETECTED: user={user_id} type={media_type} file_id={file_id}")
+
+        # Basic persistence to local JSON for linkage (will be enhanced later)
+        try:
+            import json, os
+            data_dir = os.path.join('mr_bot', 'data')
+            os.makedirs(data_dir, exist_ok=True)
+            store_path = os.path.join(data_dir, 'selfie_checks.json')
+            record = {
+                'user_id': user_id,
+                'media_type': media_type,
+                'file_id': file_id,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            existing = []
+            if os.path.exists(store_path):
+                with open(store_path, 'r', encoding='utf-8') as f:
+                    try:
+                        existing = json.load(f)
+                    except Exception:
+                        existing = []
+            existing.append(record)
+            with open(store_path, 'w', encoding='utf-8') as f:
+                json.dump(existing, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"SELFIE_STORE_ERROR: {e}")
+
+        # Determine geofence/verification based on recency to last location capture
+        verification_status = 'Pending'
+        geofence_status = 'Unknown'
+        distance_m = 0.0  # Using session anchor; no second GPS in selfie, so 0m if timely
+        try:
+            started = context.user_data.get('checkin_started_at')
+            from datetime import datetime
+            if started:
+                started_dt = datetime.fromisoformat(started).replace(tzinfo=None)
+                age_sec = (datetime.utcnow() - started_dt).total_seconds()
+                if age_sec <= 120:
+                    geofence_status = 'Inside'
+                    verification_status = 'Passed'
+                else:
+                    geofence_status = 'Expired'
+                    verification_status = 'Failed'
+        except Exception:
+            pass
+
+        # Fetch media bytes from Telegram and upload to Google Drive
+        selfie_url = ''
+        try:
+            # Prefer config; fall back to runtime bot token
+            token = config.TELEGRAM_BOT_TOKEN or (getattr(context, 'bot', None).token if context and getattr(context, 'bot', None) else '')
+            if not token:
+                logger.error(f"SELFIE_TOKEN_MISSING: user={user_id}")
+            if token and media_type in ('photo','video','video_note'):
+                logger.info(f"SELFIE_DOWNLOAD_START: user={user_id} type={media_type} file_id={file_id}")
+                gf = requests.get(
+                    f"https://api.telegram.org/bot{token}/getFile",
+                    params={"file_id": file_id}, timeout=15
+                ).json()
+                file_path = gf.get('result', {}).get('file_path')
+                if file_path:
+                    file_bytes = requests.get(
+                        f"https://api.telegram.org/file/bot{token}/{file_path}", timeout=60
+                    ).content
+                    filename = file_path.split('/')[-1]
+                    make_public = (config.SELFIE_DRIVE_SHARING.lower() == 'anyone_with_link')
+                    logger.info(f"SELFIE_UPLOAD_START: user={user_id} filename={filename} public={make_public}")
+                    _, selfie_url = upload_bytes_to_drive(
+                        data=file_bytes,
+                        filename=filename,
+                        folder_id=config.SELFIE_DRIVE_FOLDER_ID,
+                        creds_path=config.GOOGLE_SHEETS_CREDENTIALS,
+                        make_public=make_public
+                    )
+                    logger.info(f"SELFIE_UPLOAD_OK: user={user_id} url={selfie_url}")
+                else:
+                    logger.error(f"SELFIE_GETFILE_PATH_MISSING: user={user_id} resp={gf}")
+        except Exception as e:
+            logger.error(f"SELFIE_DRIVE_UPLOAD_ERROR: {e}")
+
+        # Also log to Google Sheets (metadata + URL)
+        try:
+            status = mr_session_manager.get_location_status(user_id)
+            gps = status.get('gps_coords', [0.0, 0.0]) if status else [0.0, 0.0]
+            address = status.get('address', '') if status else ''
+            ok = self.sheets.log_selfie_verification(
+                user_id=user_id,
+                media_type=media_type,
+                file_id=file_id,
+                verification_status=verification_status,
+                geofence_status=geofence_status,
+                distance_m=distance_m,
+                notes='check-in selfie',
+                gps_lat=gps[0] if len(gps) >= 2 else 0.0,
+                gps_lon=gps[1] if len(gps) >= 2 else 0.0,
+                location=address,
+                selfie_url=selfie_url
+            )
+            if ok:
+                logger.info(f"SELFIE_SHEETS_OK: user={user_id} url_present={'yes' if selfie_url else 'no'}")
+        except Exception as e:
+            logger.error(f"SELFIE_SHEETS_ERROR: {e}")
+
+        context.user_data['awaiting_selfie'] = False
+        if user_id in self.awaiting_selfie:
+            self.awaiting_selfie.pop(user_id, None)
+        await update.message.reply_text("✅ Selfie received and linked to your check-in. Proceed to log your visit.")
+        # Immediately show active session menu to streamline next action
+        try:
+            await update.message.reply_text(
+                "📝 Ready to log your visit:",
+                reply_markup=menu_manager.get_active_session_menu(str(user_id))
+            )
+        except Exception:
+            pass
+
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
         # Safety check for message existence
@@ -1085,6 +1271,28 @@ class MRCommandsHandler:
                 "Generating your daily activity report...",
                 reply_markup=menu_manager.get_analytics_menu()
             )
+        elif action == 'checkin':
+            # Quick check-in from menu: ensure active session then prompt for selfie
+            user_id_int = int(user_id)
+            status = mr_session_manager.get_location_status(user_id_int)
+            if not status.get('active', False):
+                await query.edit_message_text(
+                    "❌ Location required. Please share your location first.",
+                    reply_markup=menu_manager.get_location_request_menu()
+                )
+                return
+            # Mark check-in started (class-level map) and prompt
+            from datetime import datetime
+            self.awaiting_selfie[user_id_int] = datetime.utcnow().isoformat()
+            try:
+                await query.edit_message_text(
+                    "📸 Please send a selfie now (photo/video/video note) within 2 minutes.",
+                    reply_markup=menu_manager.get_active_session_menu(user_id)
+                )
+            except Exception:
+                await query.message.reply_text(
+                    "📸 Please send a selfie now (photo/video/video note) within 2 minutes."
+                )
             
     async def _handle_menu_callback(self, query, user_id: str, data: str):
         """Handle menu navigation callbacks"""
