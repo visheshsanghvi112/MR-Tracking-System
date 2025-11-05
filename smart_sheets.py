@@ -32,6 +32,7 @@ class SmartMRSheetsManager:
             # Get configuration
             self.spreadsheet_id = os.getenv('MR_SPREADSHEET_ID', '')
             creds_file = os.getenv('GOOGLE_SHEETS_CREDENTIALS', 'pharmagiftapp-60fb5a6a3ca9.json')
+            creds_json_env = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON', '')
             
             if not self.spreadsheet_id or self.spreadsheet_id == 'PASTE_YOUR_NEW_SPREADSHEET_ID_HERE':
                 logger.error("MR_SPREADSHEET_ID not configured")
@@ -40,13 +41,23 @@ class SmartMRSheetsManager:
             # Connect to Google Sheets
             import gspread
             from google.oauth2.service_account import Credentials
+            import json as _json
             
             scope = [
                 "https://spreadsheets.google.com/feeds",
                 "https://www.googleapis.com/auth/drive"
             ]
             
-            creds = Credentials.from_service_account_file(creds_file, scopes=scope)
+            # Prefer JSON from environment (serverless friendly). Fallback to file path for VMs.
+            if creds_json_env:
+                try:
+                    creds_info = _json.loads(creds_json_env)
+                    creds = Credentials.from_service_account_info(creds_info, scopes=scope)
+                except Exception as e:
+                    logger.error(f"Failed to parse GOOGLE_SHEETS_CREDENTIALS_JSON: {e}")
+                    creds = Credentials.from_service_account_file(creds_file, scopes=scope)
+            else:
+                creds = Credentials.from_service_account_file(creds_file, scopes=scope)
             self.client = gspread.authorize(creds)
             self.spreadsheet = self.client.open_by_key(self.spreadsheet_id)
             
