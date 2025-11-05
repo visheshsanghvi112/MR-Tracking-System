@@ -86,6 +86,8 @@ service-account*.json
 !package.json
 !package-lock.json
 !tsconfig.json
+!frontend/tsconfig.app.json
+!frontend/tsconfig.node.json
 !next.config.ts
 !eslint.config.mjs
 !postcss.config.mjs
