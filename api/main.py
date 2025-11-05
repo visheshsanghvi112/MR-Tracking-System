@@ -300,21 +300,94 @@ async def get_location_trail(
 
 @app.get("/api/verification/selfies")
 async def list_selfies(mr_id: Optional[int] = None, limit: int = 20, api_key: str = Depends(verify_api_key)):
-    """List recent selfie verification metadata (from local JSON if present)."""
+    """List recent selfie verification records from Google Sheets."""
     try:
-        data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'mr_bot', 'data', 'selfie_checks.json')
-        if not os.path.exists(data_path):
-            return {"success": True, "items": [], "count": 0}
-        with open(data_path, 'r', encoding='utf-8') as f:
-            items = json.load(f) or []
+        items = sheets_manager.get_recent_selfies(limit)
         if mr_id is not None:
-            items = [i for i in items if str(i.get('user_id')) == str(mr_id)]
-        # Sort by timestamp desc
-        items.sort(key=lambda x: x.get('timestamp',''), reverse=True)
-        return {"success": True, "items": items[:max(1, min(limit, 200))], "count": len(items[:limit])}
+            items = [i for i in items if str(i.get('mr_id')) == str(mr_id)]
+        return {"success": True, "items": items, "count": len(items)}
     except Exception as e:
         logger.error(f"Error listing selfies: {e}")
         raise HTTPException(status_code=500, detail="Failed to list selfies")
+
+@app.get("/api/verification/selfies/health")
+async def selfie_sheet_health(api_key: str = Depends(verify_api_key)):
+    """Report health of the Selfie_Verifications sheet: existence, headers, and row count."""
+    try:
+        # Ensure sheet object is available
+        # Access protected method carefully
+        try:
+            sheets_manager._ensure_selfie_sheet()  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+        selfie_sheet = getattr(sheets_manager, 'selfie_sheet', None)
+        exists = selfie_sheet is not None
+        header_ok = False
+        headers = []
+        row_count = 0
+        if exists:
+            values = selfie_sheet.get_all_values()  # A:O expected
+            if values:
+                headers = values[0]
+                expected = [
+                    'Timestamp','Date','Time','MR_ID','MR_Name','Location','GPS_Lat','GPS_Lon',
+                    'Media_Type','File_ID','Verification_Status','Geofence_Status','Distance_M','Notes','Selfie_URL'
+                ]
+                header_ok = headers[:len(expected)] == expected
+                row_count = max(0, len(values) - 1)
+        return {
+            "success": True,
+            "exists": exists,
+            "header_ok": header_ok,
+            "headers": headers,
+            "row_count": row_count
+        }
+    except Exception as e:
+        logger.error(f"Error checking selfie sheet health: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check selfie sheet health")
+
+@app.get("/api/verification/selfies/{file_id}/download")
+async def download_selfie(file_id: str, key: Optional[str] = None):
+    """Proxy-download Telegram media by file_id so frontend can render even if Drive URL is missing.
+
+    Auth: supply ?key=API_KEY as query param (browser <img> cannot send headers).
+    Resolves file_path via Telegram getFile, then streams bytes to the client.
+    """
+    try:
+        # Simple query-key auth
+        expected_key = os.getenv("API_KEY", "mr-tracking-2025")
+        if key != expected_key:
+            raise HTTPException(status_code=401, detail="Invalid or missing key")
+
+        import requests
+        token = getattr(config, 'TELEGRAM_BOT_TOKEN', None) or os.getenv('MR_BOT_TOKEN')
+        if not token:
+            raise HTTPException(status_code=500, detail="Bot token not configured")
+
+        # Resolve file path
+        gf = requests.get(f"https://api.telegram.org/bot{token}/getFile", params={"file_id": file_id}, timeout=15)
+        if not gf.ok:
+            raise HTTPException(status_code=gf.status_code, detail="Failed to resolve file")
+        file_path = gf.json().get('result', {}).get('file_path')
+        if not file_path:
+            raise HTTPException(status_code=404, detail="File path not found")
+
+        # Stream file
+        url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+        r = requests.get(url, stream=True, timeout=30)
+        if not r.ok:
+            raise HTTPException(status_code=r.status_code, detail="Failed to download file")
+
+        # Infer content-type from extension
+        import mimetypes
+        content_type = r.headers.get('Content-Type') or mimetypes.guess_type(file_path)[0] or 'application/octet-stream'
+        return StreamingResponse(r.iter_content(chunk_size=8192), media_type=content_type)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Selfie proxy download error: {e}")
+        raise HTTPException(status_code=500, detail="Selfie download failed")
 
 # ============= ANALYTICS =============
 
@@ -487,6 +560,35 @@ async def get_route_data(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get route data: {str(e)}")
+
+@app.get("/api/debug/route-scan")
+async def debug_route_scan(mr_id: int, date: str, api_key: str = Depends(verify_api_key)):
+    """Debug endpoint: show counts and sample records for an MR and date from Sheets."""
+    try:
+        data = sheets_manager.get_mr_route_data(str(mr_id), date)
+        # Also summarize date distribution for this MR and show first raw record for the date
+        summary = {}
+        raw_sample = None
+        try:
+            records = sheets_manager.main_sheet.get_all_records()
+            for r in records:
+                if str(r.get('MR_ID')) == str(mr_id):
+                    d = r.get('Date', '')
+                    summary[d] = summary.get(d, 0) + 1
+                    if raw_sample is None and d == date:
+                        raw_sample = r
+        except Exception:
+            pass
+        return {
+            "success": True,
+            "count": len(data or []),
+            "sample": data[0] if data else None,
+            "date_summary": summary,
+            "raw_sample": raw_sample
+        }
+    except Exception as e:
+        logger.error(f"debug_route_scan error: {e}")
+        raise HTTPException(status_code=500, detail="scan failed")
 
 async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
     """Get enhanced route data combining sheets and live tracking"""

@@ -1,3 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+api/node_modules/
+bun.lockb
+
+# Env & Secrets (never commit)
+.env
+.env.*
+token.json
+client_secret*.json
+pharmagiftapp-*.json
+mr_bot.log
+
+# Local databases & logs
+visit_locations.db
+mr_bot/mr_bot.log
+mr_bot/mr_bot/data/mr_bot.log
+
+# Test/diagnostic outputs
+mr_bot/api/api_test_results.json
+mr_bot/api/backend_api_test_results.json
+
+# OS/editor
+.DS_Store
+Thumbs.db
 # Environment Variables
 .env
 .env.local

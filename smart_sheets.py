@@ -79,9 +79,20 @@ class SmartMRSheetsManager:
             logger.error(f"Error setting up sheets: {e}")
             
     def cleanup_extra_sheets(self):
-        """Remove any sheets other than our 3 main sheets"""
+        """Remove any sheets other than our main sheets.
+
+        IMPORTANT: Keep selfie verification sheet and avoid destructive cleanup in production.
+        Controlled by SHEETS_CLEANUP_ENABLED env var (default: false).
+        """
         try:
-            keep_sheets = ["MR_Daily_Log", "MR_Expenses", "Location_Log"]
+            # Do not clean up by default to avoid accidental data loss
+            cleanup_enabled = os.getenv('SHEETS_CLEANUP_ENABLED', 'false').lower() in ('1','true','yes')
+            if not cleanup_enabled:
+                logger.info("Sheet cleanup is disabled (SHEETS_CLEANUP_ENABLED=false). Skipping deletion.")
+                return
+
+            # Keep core sheets PLUS selfie sheet
+            keep_sheets = ["MR_Daily_Log", "MR_Expenses", "Location_Log", "Selfie_Verifications"]
             current_sheets = self.spreadsheet.worksheets()
             
             for sheet in current_sheets:
@@ -368,6 +379,52 @@ class SmartMRSheetsManager:
         except Exception as e:
             logger.error(f"Error logging selfie verification: {e}")
             return False
+
+    # ==================== READ SELFIE VERIFICATIONS ====================
+    def get_recent_selfies(self, limit: int = 20):
+        """Return recent selfie verification rows as dicts.
+
+        Requires the Selfie_Verifications sheet to exist.
+        """
+        try:
+            self._ensure_selfie_sheet()
+            if not getattr(self, 'selfie_sheet', None):
+                return []
+            # Read all values; header in first row
+            values = self.selfie_sheet.get_all_values()
+            if not values or len(values) < 2:
+                return []
+            headers = values[0]
+            rows = [dict(zip(headers, row)) for row in values[1:]]
+            # Most recent last; reverse and limit
+            rows = list(reversed(rows))[:max(1, min(limit, 200))]
+            # Normalize keys
+            def to_float(s):
+                try:
+                    return float(s)
+                except Exception:
+                    return 0.0
+            result = []
+            for r in rows:
+                result.append({
+                    'timestamp': r.get('Timestamp',''),
+                    'mr_id': r.get('MR_ID',''),
+                    'mr_name': r.get('MR_Name',''),
+                    'location': r.get('Location',''),
+                    'gps_lat': to_float(r.get('GPS_Lat','0')),
+                    'gps_lon': to_float(r.get('GPS_Lon','0')),
+                    'media_type': r.get('Media_Type',''),
+                    'file_id': r.get('File_ID',''),
+                    'verification_status': r.get('Verification_Status',''),
+                    'geofence_status': r.get('Geofence_Status',''),
+                    'distance_m': to_float(r.get('Distance_M','0')),
+                    'notes': r.get('Notes',''),
+                    'selfie_url': r.get('Selfie_URL','')
+                })
+            return result
+        except Exception as e:
+            logger.error(f"Error reading recent selfies: {e}")
+            return []
             
     def log_location_session(self, user_id: int, lat: float, lon: float, address: str, user_data: dict = None):
         """Log location session to Location_Log sheet"""
@@ -778,16 +835,32 @@ class SmartMRSheetsManager:
                     lon = 0
 
                     # PRIORITY 1: Try Remarks field first (most reliable)
-                    if remarks and "Lat:" in remarks and "Lon:" in remarks:
-                        try:
-                            lat_str = remarks.split("Lat:")[1].split(",")[0].strip()
-                            lon_str = remarks.split("Lon:")[1].strip()
-                            lat = float(lat_str)
-                            lon = float(lon_str)
-                            print(f"[DEBUG] Parsed from Remarks: lat={lat}, lon={lon}")
-                        except Exception as e:
-                            print(f"[DEBUG] Remarks parse failed: {e}")
-                            lat, lon = 0, 0
+                    # Support both "Lat: x, Lon: y" and generic "... 18.9479, 72.8299" patterns
+                    if remarks:
+                        parsed_ok = False
+                        if "Lat:" in remarks and "Lon:" in remarks:
+                            try:
+                                lat_str = remarks.split("Lat:")[1].split(",")[0].strip()
+                                lon_str = remarks.split("Lon:")[1].strip()
+                                lat = float(lat_str)
+                                lon = float(lon_str)
+                                parsed_ok = True
+                                print(f"[DEBUG] Parsed from Remarks (Lat/Lon): lat={lat}, lon={lon}")
+                            except Exception as e:
+                                print(f"[DEBUG] Remarks Lat/Lon parse failed: {e}")
+                                lat, lon = 0, 0
+                        if not parsed_ok:
+                            # Regex-style fallback: find two floats in the text
+                            try:
+                                import re
+                                nums = re.findall(r"-?\d+\.\d+", remarks)
+                                if len(nums) >= 2:
+                                    lat = float(nums[0])
+                                    lon = float(nums[1])
+                                    parsed_ok = True
+                                    print(f"[DEBUG] Parsed from Remarks (floats): lat={lat}, lon={lon}")
+                            except Exception as e:
+                                print(f"[DEBUG] Remarks floats parse failed: {e}")
                     
                     # PRIORITY 2: If Remarks didn't work, try other fields
                     if lat == 0 or lon == 0:
@@ -822,6 +895,22 @@ class SmartMRSheetsManager:
                         except (ValueError, TypeError) as e:
                             print(f"[DEBUG] Column parse failed: {e}")
                             lat, lon = 0, 0
+
+                    # PRIORITY 3: Handle shifted/misaligned columns observed in some rows
+                    # e.g., Location holds latitude and GPS_Lat holds longitude; GPS_Lon holds session id
+                    if (lat == 0 or lon == 0):
+                        try:
+                            loc_num = float(location_field) if isinstance(location_field, (int, float, str)) and str(location_field).strip().replace('.', '', 1).replace('-', '', 1).isdigit() else None
+                        except Exception:
+                            loc_num = None
+                        try:
+                            gps_lat_num = float(record.get('GPS_Lat', '')) if str(record.get('GPS_Lat', '')).replace('.', '', 1).replace('-', '', 1).isdigit() else None
+                        except Exception:
+                            gps_lat_num = None
+                        if loc_num is not None and gps_lat_num is not None:
+                            if -90 <= loc_num <= 90 and -180 <= gps_lat_num <= 180:
+                                lat, lon = loc_num, gps_lat_num
+                                print(f"[DEBUG] Recovered from misaligned columns: lat={lat}, lon={lon}")
 
                     if lat and lon and -90 <= lat <= 90 and -180 <= lon <= 180:
                         # Get proper location name
