@@ -115,16 +115,33 @@ class SmartMRSheetsManager:
             logger.warning(f"Could not cleanup extra sheets: {e}")
             
     def setup_daily_log_sheet(self):
-        """Create MR Daily Log sheet"""
+        """Create or select Daily Log sheet. Prefer existing non-empty sheet with expected headers."""
         try:
             sheet_name = "MR_Daily_Log"
-            
-            # Check if exists
+
+            # 1) If canonical tab exists, use it
             try:
                 self.main_sheet = self.spreadsheet.worksheet(sheet_name)
                 logger.info(f"Found existing sheet: {sheet_name}")
                 return
-            except:
+            except Exception:
+                self.main_sheet = None
+
+            # 2) Otherwise, search for any worksheet that appears to be the daily log (has MR_ID and Date headers and rows)
+            try:
+                for ws in self.spreadsheet.worksheets():
+                    try:
+                        values = ws.get_all_values()
+                        if not values or len(values) < 2:
+                            continue
+                        headers = [h.strip() for h in (values[0] or [])]
+                        if 'MR_ID' in headers and 'Date' in headers:
+                            self.main_sheet = ws
+                            logger.info(f"Selected daily log sheet by header match: {ws.title}")
+                            return
+                    except Exception:
+                        continue
+            except Exception:
                 pass
                 
             # Delete default Sheet1 if empty
