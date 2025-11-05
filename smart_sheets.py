@@ -33,6 +33,7 @@ class SmartMRSheetsManager:
             self.spreadsheet_id = os.getenv('MR_SPREADSHEET_ID', '')
             creds_file = os.getenv('GOOGLE_SHEETS_CREDENTIALS', 'pharmagiftapp-60fb5a6a3ca9.json')
             creds_json_env = os.getenv('GOOGLE_SHEETS_CREDENTIALS_JSON', '')
+            self.using_env_json = bool(creds_json_env)
             
             if not self.spreadsheet_id or self.spreadsheet_id == 'PASTE_YOUR_NEW_SPREADSHEET_ID_HERE':
                 logger.error("MR_SPREADSHEET_ID not configured")

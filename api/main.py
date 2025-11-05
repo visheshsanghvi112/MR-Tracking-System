@@ -389,6 +389,45 @@ async def download_selfie(file_id: str, key: Optional[str] = None):
         logger.error(f"Selfie proxy download error: {e}")
         raise HTTPException(status_code=500, detail="Selfie download failed")
 
+# ============= DEBUG: SHEETS INSPECTION =============
+
+@app.get("/api/debug/sheets")
+async def debug_sheets(api_key: str = Depends(verify_api_key)):
+    """Return high-level info about connected Google Sheet and tabs.
+
+    Helps verify Vercel credentials, spreadsheet id, worksheet names, row counts,
+    and which sheet is currently selected as the main daily log.
+    """
+    try:
+        info = {
+            "spreadsheet_id": getattr(sheets_manager, 'spreadsheet_id', None),
+            "using_env_json": getattr(sheets_manager, 'using_env_json', False),
+            "main_sheet": getattr(getattr(sheets_manager, 'main_sheet', None), 'title', None),
+            "sheets": []
+        }
+
+        try:
+            worksheets = sheets_manager.spreadsheet.worksheets() if getattr(sheets_manager, 'spreadsheet', None) else []
+            for ws in worksheets:
+                try:
+                    values = ws.get_all_values()
+                    headers = values[0] if values else []
+                    info["sheets"].append({
+                        "title": ws.title,
+                        "rows": max(0, len(values) - 1) if values else 0,
+                        "headers": headers,
+                        "has_mr_headers": bool(headers) and ("MR_ID" in headers and "Date" in headers)
+                    })
+                except Exception as e:
+                    info["sheets"].append({"title": ws.title, "error": str(e)})
+        except Exception as e:
+            info["error"] = f"Failed to enumerate worksheets: {e}"
+
+        return {"success": True, "data": info}
+    except Exception as e:
+        logger.error(f"debug_sheets error: {e}")
+        raise HTTPException(status_code=500, detail="debug failed")
+
 # ============= ANALYTICS =============
 
 @app.get("/api/analytics/{mr_id}")
