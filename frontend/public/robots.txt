@@ -1,0 +1,37 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://fieldsync.pro/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
+
+# Block sensitive areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /private/
+Disallow: /*.json$
+Disallow: /*?*utm_*
+Disallow: /*?*session*
+Disallow: /*?*token*
+
+# Allow all main pages
+Allow: /dashboard
+Allow: /mrs
+Allow: /analytics
+Allow: /contact
+Allow: /settings
+Allow: /profile
+Allow: /login
+Allow: /register
+
+# Social media bots
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /

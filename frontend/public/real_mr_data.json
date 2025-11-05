@@ -1,0 +1,57 @@
+{
+  "mrs": [
+    {
+      "mr_id": "1201911108",
+      "name": "Vishesh Sanghvi",
+      "status": "active",
+      "last_location": {
+        "lat": 18.947962,
+        "lng": 72.829974
+      },
+      "last_activity": "2025-09-04 14:30:00",
+      "total_visits": 22
+    },
+    {
+      "mr_id": "5901220876",
+      "name": "➳ᷧ͢᭼ͫ✤⃟༎͢RAVI MAURYA𝄟࿐",
+      "status": "active",
+      "last_location": {
+        "lat": 18.947962,
+        "lng": 72.829974
+      },
+      "last_activity": "2025-09-04 14:30:00",
+      "total_visits": 3
+    }
+  ],
+  "dashboard_stats": {
+    "total_mrs": 2,
+    "active_today": 2,
+    "live_sessions": 0,
+    "avg_distance": 0.0,
+    "total_visits": 25,
+    "total_distance": 0
+  },
+  "activities": [
+    {
+      "id": "1201911108_2025-09-04 14:30:00",
+      "mr_name": "Vishesh Sanghvi",
+      "action": "Field session active",
+      "timestamp": "2025-09-04 14:30:00",
+      "location": "Lat: 18.947962, Lon: 72.829974"
+    },
+    {
+      "id": "5901220876_2025-09-04 14:30:00",
+      "mr_name": "➳ᷧ͢᭼ͫ✤⃟༎͢RAVI MAURYA𝄟࿐",
+      "action": "Field session active - New user logged 3 visits",
+      "timestamp": "2025-09-04 14:30:00",
+      "location": "Lat: 18.947962, Lon: 72.829974"
+    },
+    {
+      "id": "5901220876_2025-09-04 14:25:00",
+      "mr_name": "➳ᷧ͢᭼ͫ✤⃟༎͢RAVI MAURYA𝄟࿐",
+      "action": "First visit logged",
+      "timestamp": "2025-09-04 14:25:00",
+      "location": "Lat: 18.947962, Lon: 72.829974"
+    }
+  ]
+}
