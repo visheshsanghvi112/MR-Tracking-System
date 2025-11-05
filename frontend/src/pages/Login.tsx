@@ -322,7 +322,7 @@ export default function Login() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link 
-                  to="/demo" 
+                  to="/contact" 
                   className="text-primary hover:text-primary-hover font-medium hover:underline transition-colors"
                 >
                   Schedule a Demo

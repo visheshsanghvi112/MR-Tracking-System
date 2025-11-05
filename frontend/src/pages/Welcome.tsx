@@ -107,7 +107,7 @@ export default function Welcome() {
                   </Link>
                 </Button>
                 <Button variant="outline" size="lg" className="w-full sm:w-auto text-sm sm:text-base" asChild>
-                  <Link to="/demo">
+                  <Link to="/contact">
                     Schedule Demo
                   </Link>
                 </Button>

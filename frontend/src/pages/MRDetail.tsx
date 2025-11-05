@@ -144,7 +144,11 @@ export default function MRDetail() {
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={`/placeholder-avatar-${mr.mr_id}.jpg`} alt={mr.name} />
+              <AvatarImage
+                src={`/placeholder.svg`}
+                alt={mr.name}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
+              />
               <AvatarFallback className="text-lg">
                 {mr.name.split(' ').map(n => n[0]).join('')}
               </AvatarFallback>
