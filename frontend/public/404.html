@@ -4,14 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Redirecting…</title>
-    <meta http-equiv="refresh" content="0; url=/index.html" />
     <script>
-      // Hard fallback: send users to the SPA entry so refresh on deep links doesn't 404
-      window.location.replace('/index.html');
+      // SPA 404 fallback that preserves the original path.
+      // Loads /index.html into the document, then restores the original URL
+      // so the client router can render the correct route.
+      (function() {
+        var targetPath = window.location.pathname + window.location.search + window.location.hash;
+        fetch('/index.html', { credentials: 'same-origin' })
+          .then(function(r){ return r.text(); })
+          .then(function(html){
+            document.open();
+            document.write(html);
+            document.close();
+            try { history.replaceState(null, '', targetPath); } catch (e) {}
+          })
+          .catch(function(){ window.location.href = '/'; });
+      })();
     </script>
-    <noscript>
-      <meta http-equiv="refresh" content="0; url=/" />
-    </noscript>
   </head>
   <body>
     Redirecting…
