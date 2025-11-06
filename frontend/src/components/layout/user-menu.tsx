@@ -17,7 +17,6 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:ring-2 hover:ring-primary/20 transition-all duration-300">
           <Avatar className="h-9 w-9 ring-2 ring-background shadow-md">
-            <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
             <AvatarFallback className="bg-gradient-to-r from-primary to-primary-variant text-primary-foreground font-semibold">
               AD
             </AvatarFallback>

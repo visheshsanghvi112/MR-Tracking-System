@@ -161,7 +161,6 @@ export default function Profile() {
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative">
                     <Avatar className="h-24 w-24">
-                      <AvatarImage src="/placeholder-avatar.jpg" alt="Profile" />
                       <AvatarFallback className="text-lg bg-primary text-primary-foreground">
                         {profileData.firstName.charAt(0)}{profileData.lastName.charAt(0)}
                       </AvatarFallback>
