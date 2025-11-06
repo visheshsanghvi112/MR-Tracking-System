@@ -396,18 +396,18 @@ export function OSMMap({
         {/* ENHANCED: MR Info Panel - Larger and More Informative */}
         {/* No Data Message */}
         {mrId && validMarkers.length === 0 && !isLoading && (
-          <div className="absolute inset-0 z-[1000] flex items-center justify-center pointer-events-none">
-            <Card className="bg-background/95 backdrop-blur-md border-2 border-orange-300/50 shadow-2xl pointer-events-auto max-w-md mx-4">
-              <CardContent className="p-6 text-center">
-                <div className="text-4xl mb-4">📭</div>
-                <h3 className="text-lg font-bold mb-2 text-orange-600">No Data Available</h3>
-                <p className="text-sm text-muted-foreground mb-1">
+          <div className="absolute inset-0 z-[1000] flex items-center justify-center pointer-events-none p-4">
+            <Card className="bg-background/95 backdrop-blur-md border-2 border-orange-300/50 shadow-2xl pointer-events-auto max-w-sm w-full">
+              <CardContent className="p-4 sm:p-6 text-center">
+                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">📭</div>
+                <h3 className="text-base sm:text-lg font-bold mb-2 text-orange-600">No Data Available</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1">
                   No location data found for <strong>{mrName || `MR ${mrId}`}</strong>
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   Date: <strong>{date}</strong>
                 </p>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
                   This MR hasn't logged any visits or locations on this date.
                 </p>
               </CardContent>
@@ -416,52 +416,52 @@ export function OSMMap({
         )}
 
         {mrId && validMarkers.length > 0 && (
-          <div className="absolute top-4 left-4 z-[1000]">
+          <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-auto z-[1000]">
             <Card className="bg-background/98 backdrop-blur-md border-2 border-primary/20 shadow-2xl">
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <MapPin className="w-5 h-5 text-primary" />
+              <CardContent className="p-2 sm:p-4 space-y-2">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   </div>
-                  <div>
-                    <div className="font-bold text-lg">{mrName || `MR ${mrId}`}</div>
-                    <div className="text-xs text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-sm sm:text-lg truncate">{mrName || `MR ${mrId}`}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground">
                       {new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-wrap gap-1 sm:gap-2 pt-1 sm:pt-2">
                   {live && (
-                    <div className="flex items-center gap-2 rounded-full px-3 py-1 border shadow-sm"
+                    <div className="flex items-center gap-1 sm:gap-2 rounded-full px-2 sm:px-3 py-0.5 sm:py-1 border shadow-sm"
                          style={{
                            borderColor:'#2C8E52',
                            backgroundColor:'#34A853',
                            color:'#ffffff'
                          }}>
-                      <span className="w-2.5 h-2.5 rounded-full animate-pulse bg-white/90"></span>
-                      <span className="text-xs font-semibold">Live</span>
+                      <span className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse bg-white/90"></span>
+                      <span className="text-[10px] sm:text-xs font-semibold">Live</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 rounded-full px-3 py-1 border shadow-sm"
+                  <div className="flex items-center gap-1 sm:gap-2 rounded-full px-2 sm:px-3 py-0.5 sm:py-1 border shadow-sm"
                        style={{
                          borderColor:'#1558B0',
                          backgroundColor:'#1A73E8',
                          color:'#ffffff'
                        }}>
-                    <span className="w-2.5 h-2.5 rounded-full bg-white/90"></span>
-                    <span className="text-xs font-semibold">
+                    <span className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-white/90"></span>
+                    <span className="text-[10px] sm:text-xs font-semibold whitespace-nowrap">
                       {validMarkers.length} Point{validMarkers.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full px-3 py-1 border shadow-sm"
+                  <div className="flex items-center gap-1 sm:gap-2 rounded-full px-2 sm:px-3 py-0.5 sm:py-1 border shadow-sm"
                        style={{
                          borderColor:'#1558B0',
                          backgroundColor:'#1A73E8',
                          color:'#ffffff'
                        }}>
-                    <span className="w-2.5 h-2.5 rounded-full bg-white/90"></span>
-                    <span className="text-xs font-semibold">
+                    <span className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full bg-white/90"></span>
+                    <span className="text-[10px] sm:text-xs font-semibold whitespace-nowrap">
                       {validMarkers.filter(m => m.type === 'visit').length} Visit{validMarkers.filter(m => m.type === 'visit').length !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -472,30 +472,30 @@ export function OSMMap({
         )}
 
         {/* Map Controls */}
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000] flex flex-col gap-1 sm:gap-2">
           <Button
             size="icon"
             variant="secondary"
             onClick={handleZoomIn}
-            className="shadow-lg"
+            className="shadow-lg h-8 w-8 sm:h-10 sm:w-10"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
           <Button
             size="icon"
             variant="secondary"
             onClick={handleZoomOut}
-            className="shadow-lg"
+            className="shadow-lg h-8 w-8 sm:h-10 sm:w-10"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
           <Button
             size="icon"
             variant="secondary"
             onClick={handleFullscreen}
-            className="shadow-lg"
+            className="shadow-lg h-8 w-8 sm:h-10 sm:w-10"
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize2 className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
         </div>
 
@@ -738,32 +738,32 @@ export function OSMMap({
 
         {/* ENHANCED: Legend + Route Statistics Combined */}
         {validMarkers.length > 0 && (
-          <div className="absolute bottom-4 left-4 z-[1000] space-y-2">
+          <div className="absolute bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-auto z-[1000] space-y-2">
             {/* Route Stats Card */}
             <Card className="bg-background/98 backdrop-blur-md shadow-xl border-2 border-primary/10">
-              <CardContent className="p-3 space-y-2">
-                <div className="text-xs font-bold mb-2 text-primary">Route Information</div>
+              <CardContent className="p-2 sm:p-3 space-y-1 sm:space-y-2">
+                <div className="text-[10px] sm:text-xs font-bold mb-1 sm:mb-2 text-primary">Route Information</div>
                 
                 {/* Stats */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
+                <div className="space-y-0.5 sm:space-y-1">
+                  <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-muted-foreground">Total Points:</span>
                     <span className="font-bold">{validMarkers.length}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-muted-foreground">Visits:</span>
                     <span className="font-bold" style={{color:'#1A73E8'}}>{visitCount}</span>
                   </div>
                   {travelCount > 0 && (
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs sm:text-sm">
                       <span className="text-muted-foreground">Travel:</span>
                       <span className="font-bold" style={{color:'#34A853'}}>{travelCount}</span>
                     </div>
                   )}
                 </div>
                 
-                {/* Legend */}
-                <div className="pt-2 border-top border-border/40 space-y-2">
+                {/* Legend - Hide on very small screens, show on sm+ */}
+                <div className="hidden sm:block pt-2 border-top border-border/40 space-y-2">
                   <div className="text-xs font-semibold text-muted-foreground">Legend</div>
                   <div className="flex flex-wrap gap-2">
                     {visitCount > 0 && (
@@ -810,10 +810,11 @@ export function OSMMap({
         )}
 
         {/* Free Map Notice */}
-        <div className="absolute bottom-4 right-4 z-[1000]">
-          <Badge variant="outline" className="bg-background/95 backdrop-blur flex items-center gap-2">
-            <Info className="w-3 h-3" />
-            <span className="text-xs">Free OpenStreetMap</span>
+        <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-[1000]">
+          <Badge variant="outline" className="bg-background/95 backdrop-blur flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1">
+            <Info className="w-2 h-2 sm:w-3 sm:h-3" />
+            <span className="hidden sm:inline">Free OpenStreetMap</span>
+            <span className="sm:hidden">OSM</span>
           </Badge>
         </div>
       </CardContent>
