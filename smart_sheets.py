@@ -780,8 +780,30 @@ class SmartMRSheetsManager:
             if not self.main_sheet:
                 return []
 
-            # Get all records
-            records = self.main_sheet.get_all_records()
+            # Get all values and find the header row dynamically
+            all_values = self.main_sheet.get_all_values()
+            if not all_values or len(all_values) < 2:
+                return []
+            
+            # Find the header row by looking for 'MR_ID' column
+            header_row_index = 0
+            headers = []
+            for i, row in enumerate(all_values[:5]):  # Check first 5 rows
+                if any('MR_ID' in str(cell) for cell in row):
+                    header_row_index = i
+                    headers = [str(cell).strip() for cell in row]
+                    break
+            
+            if not headers:
+                logger.error("Could not find header row with MR_ID")
+                return []
+            
+            # Convert to records using the detected header row
+            records = []
+            for row in all_values[header_row_index + 1:]:
+                if len(row) >= len(headers):
+                    record = {headers[i]: row[i] for i in range(len(headers)) if i < len(row)}
+                    records.append(record)
 
             # Extract unique MRs with CORRECT GPS mapping based on actual sheet structure
             mrs = {}
@@ -790,30 +812,32 @@ class SmartMRSheetsManager:
                 mr_name = record.get('MR_Name', f'MR {mr_id}')
 
                 if mr_id and mr_id not in mrs:
-                    # CORRECT GPS coordinate mapping:
-                    # GPS_Lat field = latitude, GPS_Lon field = longitude, Location field = address
-                    gps_lat_field = record.get('GPS_Lat', '')    # Contains latitude
-                    gps_lon_field = record.get('GPS_Lon', '')    # Contains longitude
-                    location_field = record.get('Location', '')  # Contains address/location name
-                    remarks = record.get('Remarks', '')          # Might contain additional info
+                    # Get fields
+                    remarks = record.get('Remarks', '')          # Contains "Lat: X, Lon: Y" format
+                    location_field = record.get('Location', '')  # Contains address/location name or lat value
+                    gps_lat_field = record.get('GPS_Lat', '')    # Might be shifted
+                    gps_lon_field = record.get('GPS_Lon', '')    # Might be shifted
                     timestamp = record.get('Timestamp', '')
 
-                    # Parse coordinates properly
+                    # Parse coordinates - PRIORITY 1: Remarks field (most reliable)
+                    lat = 0
+                    lon = 0
+                    
                     try:
-                        lat = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
-                        lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
-
-                        # If still no coordinates, try parsing from Remarks field
-                        if (lat == 0 or lon == 0) and remarks:
-                            # Parse format like "Lat: 18.947962, Lon: 72.829974"
-                            if "Lat:" in remarks and "Lon:" in remarks:
-                                try:
-                                    lat_str = remarks.split("Lat:")[1].split(",")[0].strip()
-                                    lon_str = remarks.split("Lon:")[1].strip()
-                                    lat = float(lat_str)
-                                    lon = float(lon_str)
-                                except:
-                                    pass
+                        # Try Remarks first - format: "Lat: 18.947962, Lon: 72.829974"
+                        if remarks and "Lat:" in remarks and "Lon:" in remarks:
+                            try:
+                                lat_str = remarks.split("Lat:")[1].split(",")[0].strip()
+                                lon_str = remarks.split("Lon:")[1].strip()
+                                lat = float(lat_str)
+                                lon = float(lon_str)
+                            except:
+                                pass
+                        
+                        # If Remarks didn't work, try GPS fields
+                        if lat == 0 or lon == 0:
+                            lat = float(gps_lat_field) if gps_lat_field and gps_lat_field != '' else 0
+                            lon = float(gps_lon_field) if gps_lon_field and gps_lon_field != '' else 0
 
                     except (ValueError, TypeError):
                         lat, lon = 0, 0
