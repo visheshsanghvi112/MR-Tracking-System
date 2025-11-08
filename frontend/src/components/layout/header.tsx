@@ -65,9 +65,9 @@ export function Header({ className }: HeaderProps) {
       "sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-sm transition-all duration-300 shadow-sm",
       className
     )}>
-      <div className="container flex h-16 lg:h-18 items-center justify-between px-4 lg:px-6 transition-all duration-300">
+      <div className="container flex h-16 lg:h-20 items-center justify-between px-3 sm:px-4 lg:px-6 gap-2 sm:gap-4 transition-all duration-300">
         {/* Brand */}
-        <div className="flex items-center gap-3 lg:gap-8">
+        <div className="flex items-center gap-2 sm:gap-3 lg:gap-8 flex-shrink-0 min-w-0">
           <Logo linkTo="/dashboard" size="md" />
           
           {/* Desktop Navigation */}
@@ -75,18 +75,18 @@ export function Header({ className }: HeaderProps) {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
           {/* Connection Status - Hidden on small screens */}
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/30 border border-border/50">
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/30 border border-border/50 flex-shrink-0">
             {wsConnected ? (
               <div className="flex items-center gap-2 text-success">
                 <Wifi className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">Connected</span>
+                <span className="text-xs font-medium whitespace-nowrap">Connected</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-destructive">
                 <WifiOff className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">Disconnected</span>
+                <span className="text-xs font-medium whitespace-nowrap">Disconnected</span>
               </div>
             )}
           </div>
