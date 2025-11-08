@@ -281,7 +281,7 @@ export default function Welcome() {
               </Button>
             </div>
             <p className="mt-3 sm:mt-4 text-xs sm:text-sm opacity-75 px-4">
-              Questions? Call us at +91-9876543210 or email sales@mrtracking.in
+              Questions? Call us at +91 98765 43210 or email contact@johnlee.co.in
             </p>
           </div>
         </section>

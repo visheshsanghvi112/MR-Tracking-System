@@ -63,25 +63,25 @@ const Contact = () => {
     {
       icon: Mail,
       title: "Email Support",
-      value: "support@fieldsync.pro",
-      description: "24/7 email support"
+      value: "contact@johnlee.co.in",
+      description: "Business inquiries & support"
     },
     {
       icon: Phone,
       title: "Phone Support",
-      value: "+1 (555) 123-4567",
-      description: "Mon-Fri, 9AM-6PM PST"
+      value: "+91 98765 43210",
+      description: "Mon-Sat, 10AM-7PM IST"
     },
     {
       icon: MapPin,
       title: "Head Office",
-      value: "San Francisco, CA",
-      description: "Visit our headquarters"
+      value: "Mumbai, Maharashtra, India",
+      description: "Business District, Andheri East"
     },
     {
       icon: Clock,
       title: "Response Time",
-      value: "< 4 hours",
+      value: "< 24 hours",
       description: "Average response time"
     }
   ];
@@ -103,11 +103,11 @@ const Contact = () => {
             Get in Touch
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-primary via-primary-variant to-accent bg-clip-text text-transparent">
-            Contact FieldSync Pro
+            Contact John Lee Solutions
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Have questions about our medical representative tracking platform? 
-            We're here to help you optimize your field operations.
+            Have questions about our MR tracking platform? 
+            We're here to help you transform your pharmaceutical field operations.
           </p>
         </div>
 
@@ -257,8 +257,8 @@ const Contact = () => {
                 </p>
                 <Separator className="bg-white/20" />
                 <div className="text-white/90 text-sm">
-                  <p>Emergency Support:</p>
-                  <p className="font-bold text-white">+1 (555) 911-HELP</p>
+                  <p>Business Inquiries:</p>
+                  <p className="font-bold text-white">+91 98765 43210</p>
                 </div>
               </div>
             </EnhancedCard>

@@ -39,9 +39,9 @@ export function Footer() {
   ];
 
   const socialLinks = [
-    { name: "GitHub", href: "https://github.com", icon: Github },
-    { name: "Twitter", href: "https://twitter.com", icon: Twitter },
-    { name: "LinkedIn", href: "https://linkedin.com", icon: Linkedin },
+    { name: "GitHub", href: "https://github.com/visheshsanghvi112/MR-Tracking-System", icon: Github },
+    { name: "Twitter", href: "https://twitter.com/johnleesolutions", icon: Twitter },
+    { name: "LinkedIn", href: "https://linkedin.com/company/johnlee-solutions", icon: Linkedin },
   ];
 
   return (
@@ -55,20 +55,24 @@ export function Footer() {
               <div className="flex h-8 w-8 items-center justify-center rounded-xl gradient-primary shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
                 <MapPin className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-bold text-foreground text-lg bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">MR Tracking India</span>
+              <span className="font-bold text-foreground text-lg bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">John Lee Solutions</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Comprehensive medical representative tracking and analytics platform. 
-              Monitor field activities, optimize routes, and drive sales performance.
+              Premium pharmaceutical field force management platform. 
+              Real-time tracking, intelligent analytics, and performance optimization for medical representatives.
             </p>
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <Mail className="h-4 w-4" />
-                <span>support@mrtracking.in</span>
+                <a href="mailto:contact@johnlee.co.in">contact@johnlee.co.in</a>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Phone className="h-4 w-4" />
+                <a href="tel:+919876543210">+91 98765 43210</a>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4" />
-                <span>+91 98765 43210</span>
+                <MapPin className="h-4 w-4" />
+                <span>Mumbai, Maharashtra, India</span>
               </div>
             </div>
           </div>
@@ -155,10 +159,10 @@ export function Footer() {
         {/* Footer Bottom */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-            <span>© {currentYear} MR Tracking India. All rights reserved.</span>
+            <span>© {currentYear} John Lee Solutions. All rights reserved.</span>
             <Separator orientation="vertical" className="h-4 hidden sm:block" />
             <span className="text-xs font-medium bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">
-              Made by Vishesh Sanghvi for Johnlee
+              Powered by Advanced AI & Cloud Technology
             </span>
           </div>
           
