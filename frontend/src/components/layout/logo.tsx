@@ -11,22 +11,22 @@ interface LogoProps {
 export function Logo({ className, linkTo = "/", size = "md" }: LogoProps) {
   const sizeClasses = {
     sm: {
-      container: "h-8 w-8",
-      icon: "h-4 w-4",
-      text: "text-xs",
-      subtitle: "text-[8px]"
+      container: "h-7 w-7 sm:h-8 sm:w-8",
+      icon: "h-3.5 w-3.5 sm:h-4 sm:w-4",
+      text: "text-[10px] sm:text-xs",
+      subtitle: "text-[7px] sm:text-[8px]"
     },
     md: {
-      container: "h-9 w-9 sm:h-10 sm:w-10",
-      icon: "h-4 w-4 sm:h-5 sm:w-5",
-      text: "text-xs sm:text-sm md:text-base",
-      subtitle: "text-[8px] sm:text-[10px]"
+      container: "h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10",
+      icon: "h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5",
+      text: "text-[11px] sm:text-xs md:text-sm lg:text-base",
+      subtitle: "text-[7px] sm:text-[9px] md:text-[10px]"
     },
     lg: {
-      container: "h-10 w-10 sm:h-12 sm:w-12",
-      icon: "h-5 w-5 sm:h-6 sm:w-6",
-      text: "text-sm sm:text-base lg:text-lg",
-      subtitle: "text-[10px] sm:text-xs"
+      container: "h-9 w-9 sm:h-10 sm:w-10 md:h-12 md:w-12",
+      icon: "h-4.5 w-4.5 sm:h-5 sm:w-5 md:h-6 md:w-6",
+      text: "text-xs sm:text-sm md:text-base lg:text-lg",
+      subtitle: "text-[8px] sm:text-[10px] md:text-xs"
     }
   };
 
@@ -36,13 +36,12 @@ export function Logo({ className, linkTo = "/", size = "md" }: LogoProps) {
     <Link 
       to={linkTo} 
       className={cn(
-        "flex items-center gap-1 sm:gap-1.5 md:gap-2 group flex-shrink-0 transition-transform duration-200 hover:scale-[1.01] overflow-visible",
+        "flex items-center gap-1 sm:gap-1.5 group flex-shrink-0 hover:opacity-90 transition-opacity",
         className
       )}
-      style={{ minWidth: 'fit-content' }}
     >
       <div className={cn(
-        "flex items-center justify-center rounded-lg sm:rounded-xl gradient-primary shadow-md group-hover:shadow-lg transition-all duration-200 flex-shrink-0",
+        "flex items-center justify-center rounded-lg gradient-primary shadow-sm flex-shrink-0",
         currentSize.container
       )}>
         <MapPin className={cn(
@@ -50,15 +49,15 @@ export function Logo({ className, linkTo = "/", size = "md" }: LogoProps) {
           currentSize.icon
         )} />
       </div>
-      <div className="flex flex-col leading-none justify-center overflow-visible" style={{ minWidth: 'fit-content' }}>
+      <div className="flex flex-col leading-none">
         <span className={cn(
-          "font-black bg-gradient-to-r from-primary via-primary-variant to-accent bg-clip-text text-transparent whitespace-nowrap tracking-tight",
+          "font-black bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent whitespace-nowrap",
           currentSize.text
         )}>
           FieldSync
         </span>
         <span className={cn(
-          "font-bold text-muted-foreground tracking-widest uppercase opacity-70 whitespace-nowrap mt-0",
+          "font-bold text-muted-foreground tracking-widest uppercase opacity-60 whitespace-nowrap hidden xs:block",
           currentSize.subtitle
         )}>
           PRO

@@ -65,28 +65,28 @@ export function Header({ className }: HeaderProps) {
       "sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-sm transition-all duration-300 shadow-sm overflow-visible",
       className
     )}>
-      <div className="w-full max-w-[100vw] mx-auto flex h-16 sm:h-18 lg:h-20 items-center justify-between px-2 sm:px-3 md:px-4 lg:px-6 gap-1 sm:gap-2 md:gap-4">
-        {/* Brand - Fixed width on mobile */}
-        <div className="flex items-center gap-1 sm:gap-2 lg:gap-6 flex-shrink-0 overflow-visible">
+      <div className="w-full flex h-16 sm:h-18 lg:h-20 items-center px-2 sm:px-3 md:px-4 lg:px-6">
+        {/* Brand - PRIORITY: Never allow compression */}
+        <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-6 flex-shrink-0 mr-auto">
           <Logo linkTo="/dashboard" size="md" />
           
           {/* Desktop Navigation */}
-          {!isMobile && <div className="ml-4"><NavigationMenuDesktop /></div>}
+          {!isMobile && <div className="ml-2 lg:ml-4"><NavigationMenuDesktop /></div>}
         </div>
 
-        {/* Right side */}
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+        {/* Right side - Allow MINIMUM shrinking */}
+        <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 flex-shrink ml-2">
           {/* Connection Status - Hidden on small screens */}
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/30 border border-border/50 flex-shrink-0">
+          <div className="hidden xl:flex items-center gap-2 px-2 py-1 rounded-full bg-muted/30 border border-border/50">
             {wsConnected ? (
-              <div className="flex items-center gap-2 text-success">
-                <Wifi className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium whitespace-nowrap">Connected</span>
+              <div className="flex items-center gap-1.5 text-success">
+                <Wifi className="h-3 w-3" />
+                <span className="text-[10px] font-medium whitespace-nowrap">Connected</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-destructive">
-                <WifiOff className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium whitespace-nowrap">Disconnected</span>
+              <div className="flex items-center gap-1.5 text-destructive">
+                <WifiOff className="h-3 w-3" />
+                <span className="text-[10px] font-medium whitespace-nowrap">Offline</span>
               </div>
             )}
           </div>
@@ -95,9 +95,9 @@ export function Header({ className }: HeaderProps) {
           <ThemeToggle />
 
           {/* Notifications - Hidden on small screens */}
-          <Button variant="ghost" size="sm" className="relative hidden sm:flex h-9 w-9 px-0 hover:scale-105 hover:bg-accent transition-all duration-300 rounded-full">
-            <Bell className="h-4 w-4" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-[10px] gradient-primary text-primary-foreground border-2 border-background shadow-lg">
+          <Button variant="ghost" size="sm" className="relative hidden sm:flex h-8 w-8 px-0 hover:bg-accent transition-colors rounded-full">
+            <Bell className="h-3.5 w-3.5" />
+            <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full p-0 text-[9px] gradient-primary text-primary-foreground border border-background">
               3
             </Badge>
           </Button>
