@@ -62,16 +62,16 @@ export function Header({ className }: HeaderProps) {
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-sm transition-all duration-300 shadow-sm",
+      "sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-sm transition-all duration-300 shadow-sm overflow-visible",
       className
     )}>
-      <div className="container flex h-16 lg:h-20 items-center justify-between px-3 sm:px-4 lg:px-6 gap-2 sm:gap-4 transition-all duration-300">
-        {/* Brand */}
-        <div className="flex items-center gap-2 sm:gap-3 lg:gap-8 flex-shrink-0 min-w-0">
+      <div className="w-full max-w-[100vw] mx-auto flex h-16 sm:h-18 lg:h-20 items-center justify-between px-2 sm:px-3 md:px-4 lg:px-6 gap-1 sm:gap-2 md:gap-4">
+        {/* Brand - Fixed width on mobile */}
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-6 flex-shrink-0 overflow-visible">
           <Logo linkTo="/dashboard" size="md" />
           
           {/* Desktop Navigation */}
-          {!isMobile && <NavigationMenuDesktop />}
+          {!isMobile && <div className="ml-4"><NavigationMenuDesktop /></div>}
         </div>
 
         {/* Right side */}
