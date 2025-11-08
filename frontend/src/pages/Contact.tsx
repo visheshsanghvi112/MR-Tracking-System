@@ -63,20 +63,20 @@ const Contact = () => {
     {
       icon: Mail,
       title: "Email Support",
-      value: "contact@johnlee.co.in",
+      value: "visheshsanghvi112@gmail.com",
       description: "Business inquiries & support"
     },
     {
       icon: Phone,
       title: "Phone Support",
-      value: "+91 98765 43210",
+      value: "+91 79772 82697",
       description: "Mon-Sat, 10AM-7PM IST"
     },
     {
       icon: MapPin,
       title: "Head Office",
       value: "Mumbai, Maharashtra, India",
-      description: "Business District, Andheri East"
+      description: "Business District"
     },
     {
       icon: Clock,
@@ -103,7 +103,7 @@ const Contact = () => {
             Get in Touch
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-primary via-primary-variant to-accent bg-clip-text text-transparent">
-            Contact John Lee Solutions
+            Contact FieldSync PRO
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Have questions about our MR tracking platform? 
@@ -258,7 +258,7 @@ const Contact = () => {
                 <Separator className="bg-white/20" />
                 <div className="text-white/90 text-sm">
                   <p>Business Inquiries:</p>
-                  <p className="font-bold text-white">+91 98765 43210</p>
+                  <p className="font-bold text-white">+91 79772 82697</p>
                 </div>
               </div>
             </EnhancedCard>

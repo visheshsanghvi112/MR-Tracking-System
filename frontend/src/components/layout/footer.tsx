@@ -52,10 +52,13 @@ export function Footer() {
           {/* Brand Section */}
           <div className="space-y-4">
             <Link to="/dashboard" className="flex items-center gap-2 group">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl gradient-primary shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                <MapPin className="h-4 w-4 text-primary-foreground" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                <MapPin className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-foreground text-lg bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">John Lee Solutions</span>
+              <div className="flex flex-col">
+                <span className="font-black text-lg bg-gradient-to-r from-primary via-primary-variant to-accent bg-clip-text text-transparent tracking-tight">FieldSync</span>
+                <span className="text-xs font-bold text-muted-foreground tracking-widest uppercase opacity-70">PRO</span>
+              </div>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Premium pharmaceutical field force management platform. 
@@ -64,11 +67,11 @@ export function Footer() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <Mail className="h-4 w-4" />
-                <a href="mailto:contact@johnlee.co.in">contact@johnlee.co.in</a>
+                <a href="mailto:visheshsanghvi112@gmail.com">visheshsanghvi112@gmail.com</a>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <Phone className="h-4 w-4" />
-                <a href="tel:+919876543210">+91 98765 43210</a>
+                <a href="tel:+917977282697">+91 79772 82697</a>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4" />
@@ -159,10 +162,10 @@ export function Footer() {
         {/* Footer Bottom */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-            <span>© {currentYear} John Lee Solutions. All rights reserved.</span>
+            <span>© {currentYear} FieldSync PRO. All rights reserved.</span>
             <Separator orientation="vertical" className="h-4 hidden sm:block" />
-            <span className="text-xs font-medium bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">
-              Powered by Advanced AI & Cloud Technology
+            <span className="text-xs font-medium">
+              Made with ❤️ by <span className="font-semibold bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">Vishesh Sanghvi</span>
             </span>
           </div>
           

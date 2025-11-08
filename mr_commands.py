@@ -107,30 +107,44 @@ class MRCommandsHandler:
             return
         logger.info(f"SELFIE_MEDIA_DETECTED: user={user_id} type={media_type} file_id={file_id}")
 
-        # Basic persistence to local JSON for linkage (will be enhanced later)
+        # Thread-safe persistence to SQLite database (prevents data loss from race conditions)
         try:
-            import json, os
-            data_dir = os.path.join('mr_bot', 'data')
-            os.makedirs(data_dir, exist_ok=True)
-            store_path = os.path.join(data_dir, 'selfie_checks.json')
-            record = {
-                'user_id': user_id,
-                'media_type': media_type,
-                'file_id': file_id,
-                'timestamp': datetime.utcnow().isoformat()
-            }
-            existing = []
-            if os.path.exists(store_path):
-                with open(store_path, 'r', encoding='utf-8') as f:
-                    try:
-                        existing = json.load(f)
-                    except Exception:
-                        existing = []
-            existing.append(record)
-            with open(store_path, 'w', encoding='utf-8') as f:
-                json.dump(existing, f, ensure_ascii=False, indent=2)
+            from selfie_db import get_selfie_db
+            db = get_selfie_db()
+            db.add_selfie(
+                user_id=user_id,
+                media_type=media_type,
+                file_id=file_id,
+                timestamp=datetime.utcnow().isoformat()
+            )
+            logger.info(f"SELFIE_SAVED_TO_DB: user={user_id}, file_id={file_id}")
         except Exception as e:
             logger.error(f"SELFIE_STORE_ERROR: {e}")
+            # Fallback to JSON if database fails (backwards compatibility)
+            try:
+                import json, os
+                data_dir = os.path.join('mr_bot', 'data')
+                os.makedirs(data_dir, exist_ok=True)
+                store_path = os.path.join(data_dir, 'selfie_checks_fallback.json')
+                record = {
+                    'user_id': user_id,
+                    'media_type': media_type,
+                    'file_id': file_id,
+                    'timestamp': datetime.utcnow().isoformat()
+                }
+                existing = []
+                if os.path.exists(store_path):
+                    with open(store_path, 'r', encoding='utf-8') as f:
+                        try:
+                            existing = json.load(f)
+                        except Exception:
+                            existing = []
+                existing.append(record)
+                with open(store_path, 'w', encoding='utf-8') as f:
+                    json.dump(existing, f, ensure_ascii=False, indent=2)
+                logger.warning(f"SELFIE_SAVED_TO_FALLBACK_JSON: {store_path}")
+            except Exception as fallback_error:
+                logger.error(f"SELFIE_FALLBACK_ERROR: {fallback_error}")
 
         # Determine geofence/verification based on recency to last location capture
         verification_status = 'Pending'
