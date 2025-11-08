@@ -17,7 +17,9 @@ class SelfieDatabase:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            data_dir = Path('mr_bot') / 'data'
+            # Use absolute path based on this file's location to avoid working directory issues
+            base_dir = Path(__file__).parent.resolve()
+            data_dir = base_dir / 'mr_bot' / 'data'
             data_dir.mkdir(parents=True, exist_ok=True)
             db_path = str(data_dir / 'selfie_checks.db')
         
