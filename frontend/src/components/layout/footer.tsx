@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Logo } from "@/components/layout/logo";
 import { 
   MapPin, 
   Mail, 
@@ -51,14 +52,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand Section */}
           <div className="space-y-4">
-            <Link to="/dashboard" className="flex items-center gap-2 group">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                <MapPin className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-black text-lg bg-gradient-to-r from-primary via-primary-variant to-accent bg-clip-text text-transparent tracking-tight">FieldSync</span>
-                <span className="text-xs font-bold text-muted-foreground tracking-widest uppercase opacity-70">PRO</span>
-              </div>
+            <Link to="/dashboard">
+              <Logo />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Premium pharmaceutical field force management platform. 
@@ -165,7 +160,7 @@ export function Footer() {
             <span>© {currentYear} FieldSync PRO. All rights reserved.</span>
             <Separator orientation="vertical" className="h-4 hidden sm:block" />
             <span className="text-xs font-medium">
-              Made with ❤️ by <span className="font-semibold bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">Vishesh Sanghvi</span>
+              Made by <a href="https://visheshsanghvi.me" target="_blank" rel="noopener noreferrer" className="font-semibold bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent hover:underline">Vishesh Sanghvi</a> for Johnlee
             </span>
           </div>
           
