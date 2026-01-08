@@ -1,0 +1,197 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # ============================================================
+  # BACKEND TESTS
+  # ============================================================
+  backend-lint-test:
+    name: Backend Lint & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio flake8 black isort
+
+      - name: Lint with flake8
+        run: |
+          # Stop build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=__pycache__,venv,.git
+          # Warnings (non-blocking)
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=__pycache__,venv,.git
+
+      - name: Check formatting with Black
+        run: |
+          black --check --diff . --exclude='/(\.git|__pycache__|venv|node_modules)/' || echo "Formatting issues found (non-blocking)"
+
+      - name: Check imports with isort
+        run: |
+          isort --check-only --diff . --skip __pycache__ --skip venv || echo "Import order issues found (non-blocking)"
+
+      - name: Run Python syntax check
+        run: |
+          python -m py_compile main.py config.py gemini_handler.py gemini_parser.py
+
+      - name: Verify imports work
+        run: |
+          python -c "import config; print('✓ config.py imports')"
+          python -c "import gemini_handler; print('✓ gemini_handler.py imports')"
+          python -c "import production; print('✓ production.py imports')"
+
+  # ============================================================
+  # FRONTEND TESTS
+  # ============================================================
+  frontend-lint-build:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint || echo "Lint warnings found"
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://mr-bot.vercel.app' }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist
+          retention-days: 7
+
+  # ============================================================
+  # SECURITY SCAN
+  # ============================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install security tools
+        run: |
+          pip install safety bandit
+
+      - name: Check dependencies for vulnerabilities
+        run: |
+          safety check -r requirements.txt --output text || echo "Some vulnerabilities found (review required)"
+
+      - name: Run Bandit security linter
+        run: |
+          bandit -r . -x ./venv,./node_modules,./__pycache__,./frontend --severity-level medium -f json -o bandit-report.json || true
+          bandit -r . -x ./venv,./node_modules,./__pycache__,./frontend --severity-level high || echo "Security issues found (review required)"
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report
+          path: bandit-report.json
+          retention-days: 30
+
+  # ============================================================
+  # DEPLOY TO VERCEL (only on main branch push)
+  # ============================================================
+  deploy-backend:
+    name: Deploy Backend to Vercel
+    needs: [backend-lint-test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND }}
+          vercel-args: '--prod'
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    needs: [frontend-lint-build, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
+          working-directory: frontend
+          vercel-args: '--prod'
+
+  # ============================================================
+  # NOTIFY ON FAILURE
+  # ============================================================
+  notify-failure:
+    name: Notify on Failure
+    needs: [backend-lint-test, frontend-lint-build, security-scan]
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+      - name: Send failure notification
+        run: |
+          echo "❌ CI/CD Pipeline failed!"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Check the Actions tab for details."

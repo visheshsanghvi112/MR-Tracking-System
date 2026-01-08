@@ -74,8 +74,28 @@ except Exception as e:
         pass
     config = MockConfig()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# ============= PRODUCTION SETUP =============
+try:
+    from production import (
+        setup_production_logging, init_sentry, 
+        get_full_health_status, CircuitBreaker,
+        RequestContext, capture_exception
+    )
+    
+    # Setup production logging (JSON in prod, readable in dev)
+    setup_production_logging(
+        json_format=os.getenv("ENVIRONMENT") == "production",
+        level=os.getenv("LOG_LEVEL", "INFO")
+    )
+    
+    # Initialize Sentry error tracking
+    init_sentry()
+    
+    print("[OK] Production utilities loaded (Sentry, structured logging, circuit breakers)")
+except ImportError as e:
+    print(f"[WARN] Production utilities not available: {e}")
+    logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -167,6 +187,43 @@ async def health_check():
         }
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+
+
+@app.get("/api/health/detailed")
+async def detailed_health_check():
+    """Comprehensive health check with component status - for monitoring systems"""
+    try:
+        health_status = await get_full_health_status()
+        
+        # Add API-specific checks
+        try:
+            test_mrs = sheets_manager.get_all_mrs()
+            health_status["components"]["api"] = {
+                "status": "healthy",
+                "mrs_loaded": len(test_mrs)
+            }
+        except Exception as e:
+            health_status["components"]["api"] = {
+                "status": "unhealthy",
+                "error": str(e)
+            }
+        
+        status_code = 200 if health_status["status"] == "healthy" else 503
+        return Response(
+            content=json.dumps(health_status, indent=2),
+            status_code=status_code,
+            media_type="application/json"
+        )
+    except Exception as e:
+        return Response(
+            content=json.dumps({
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }),
+            status_code=503,
+            media_type="application/json"
+        )
 
 # ============= MR MANAGEMENT =============
 
