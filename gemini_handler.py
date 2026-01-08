@@ -1,9 +1,16 @@
 """
 Centralized Gemini AI Handler with Robust Fallback Logic
-- Multiple model fallback (gemini-2.0-flash -> gemini-1.5-flash -> gemini-1.5-pro)
+- Multiple model fallback through latest available models
 - Multiple API key rotation
 - Automatic retry with exponential backoff
 - Rate limit handling
+
+Official Models (Jan 2026):
+- gemini-2.5-flash: Best price-performance, fast, stable
+- gemini-2.5-flash-lite: Ultra fast, cost-efficient
+- gemini-2.5-pro: Advanced thinking, complex reasoning
+- gemini-2.0-flash: Previous gen workhorse
+- gemini-2.0-flash-lite: Previous gen fast model
 """
 import os
 import asyncio
@@ -13,11 +20,14 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-# Available Gemini models in order of preference
+# Available Gemini models in order of preference (updated Jan 2026)
+# Source: https://ai.google.dev/gemini-api/docs/models
 GEMINI_MODELS = [
-    'gemini-2.0-flash',      # Fastest, newest
-    'gemini-1.5-flash',      # Fast, reliable
-    'gemini-1.5-pro',        # Most capable, slower
+    'gemini-2.5-flash',       # Best price-performance (stable)
+    'gemini-2.5-flash-lite',  # Ultra fast, cheapest
+    'gemini-2.0-flash',       # Previous gen workhorse (fallback)
+    'gemini-2.5-pro',         # Advanced thinking (slower but powerful)
+    'gemini-2.0-flash-lite',  # Previous gen fast (last resort)
 ]
 
 
