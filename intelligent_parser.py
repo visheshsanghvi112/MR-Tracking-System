@@ -1,6 +1,7 @@
 """
 MR Bot Intelligent Gemini Parser
 Advanced AI parsing with ML/DL techniques for MR field data
+Now uses centralized gemini_handler for robust fallback
 """
 import os
 import sys
@@ -13,40 +14,27 @@ from typing import Dict, List, Optional, Tuple
 # Add parent directory
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+# Import centralized Gemini handler
+try:
+    from gemini_handler import gemini, generate, generate_json
+    GEMINI_HANDLER_AVAILABLE = True
+except ImportError:
+    GEMINI_HANDLER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class IntelligentMRParser:
     """AI-powered parser for MR field data using Gemini with ML/DL techniques"""
     
     def __init__(self):
-        self.gemini_keys = []
-        self.current_key_index = 0
         self.learning_data = {}
         self.pattern_cache = {}
-        self.load_configuration()
+        self.handler_available = GEMINI_HANDLER_AVAILABLE
         self.load_learning_patterns()
-        
-    def load_configuration(self):
-        """Load Gemini API keys and configuration"""
-        try:
-            from dotenv import load_dotenv
-            load_dotenv()
-            
-            # Load multiple Gemini keys for load balancing
-            self.gemini_keys = [
-                os.getenv('GEMINI_API_KEY', ''),
-                os.getenv('GEMINI_API_KEY_2', ''),
-                os.getenv('GEMINI_API_KEY_3', '')
-            ]
-            
-            # Filter out empty keys
-            self.gemini_keys = [key for key in self.gemini_keys if key]
-            
-            if not self.gemini_keys:
-                logger.error("No Gemini API keys configured")
-                
-        except Exception as e:
-            logger.error(f"Error loading configuration: {e}")
+        if self.handler_available:
+            logger.info("Using centralized Gemini handler with fallback support")
+        else:
+            logger.warning("Gemini handler not available")
             
     def load_learning_patterns(self):
         """Load ML patterns from previous parsing sessions"""
@@ -386,39 +374,11 @@ class IntelligentMRParser:
             logger.error(f"Error saving patterns: {e}")
             
     async def call_gemini_with_retry(self, prompt: str, max_retries: int = 3) -> Optional[str]:
-        """Call Gemini API with load balancing and retry logic"""
-        try:
-            import google.generativeai as genai
-            
-            for attempt in range(max_retries):
-                try:
-                    # Use round-robin key selection for load balancing
-                    api_key = self.gemini_keys[self.current_key_index % len(self.gemini_keys)]
-                    self.current_key_index += 1
-                    
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel('gemini-2.0-flash')
-                    
-                    response = await model.generate_content_async(
-                        prompt,
-                        generation_config=genai.types.GenerationConfig(
-                            temperature=0.1,  # Low temperature for structured parsing
-                            top_p=0.8,
-                            top_k=40,
-                            max_output_tokens=2048
-                        )
-                    )
-                    
-                    return response.text
-                    
-                except Exception as e:
-                    logger.warning(f"Gemini API attempt {attempt + 1} failed: {e}")
-                    if attempt == max_retries - 1:
-                        raise
-                    await asyncio.sleep(1)  # Wait before retry
-                    
-        except Exception as e:
-            logger.error(f"Gemini API error: {e}")
+        """Call Gemini API using centralized handler with fallback"""
+        if self.handler_available:
+            return await generate(prompt, max_retries=max_retries)
+        else:
+            logger.error("Gemini handler not available")
             return None
             
     def extract_json_from_response(self, response: str) -> Optional[Dict]:

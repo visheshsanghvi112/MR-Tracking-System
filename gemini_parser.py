@@ -1,6 +1,7 @@
 """
 MR Bot Gemini AI Integration
 Smart parsing and response system with ML enhancement
+Now uses centralized gemini_handler for robust fallback
 """
 import os
 import sys
@@ -14,50 +15,26 @@ from typing import Dict, List, Optional, Tuple, Any
 # Add parent directory for shared modules
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+# Import centralized Gemini handler
+try:
+    from gemini_handler import gemini, generate, generate_json
+    GEMINI_HANDLER_AVAILABLE = True
+except ImportError:
+    GEMINI_HANDLER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class GeminiMRParser:
     """Core Gemini parser for MR Bot with enhanced ML capabilities"""
     
     def __init__(self):
-        self.api_key = None
-        self.model = None
         self.ml_patterns = {}
-        self.initialize_gemini()
+        self.handler_available = GEMINI_HANDLER_AVAILABLE
         self.load_ml_patterns()
-        
-    def initialize_gemini(self):
-        """Initialize Gemini API connection"""
-        try:
-            # Load API key from environment or config
-            self.api_key = os.getenv('GEMINI_API_KEY', '')
-            
-            if not self.api_key:
-                # Try loading from config file
-                config_file = os.path.join(os.path.dirname(__file__), 'config.py')
-                if os.path.exists(config_file):
-                    sys.path.insert(0, os.path.dirname(config_file))
-                    try:
-                        import config
-                        self.api_key = getattr(config, 'GEMINI_API_KEY', '')
-                    except:
-                        pass
-                        
-            if self.api_key:
-                try:
-                    import google.generativeai as genai
-                    genai.configure(api_key=self.api_key)
-                    # Use gemini-2.0-flash which is available and working
-                    self.model = genai.GenerativeModel('gemini-2.0-flash')
-                    logger.info("Gemini initialized successfully with gemini-2.0-flash")
-                except ImportError:
-                    logger.warning("google-generativeai package not installed")
-                    self.model = None
-            else:
-                logger.warning("No Gemini API key found")
-                
-        except Exception as e:
-            logger.error(f"Gemini initialization error: {e}")
+        if self.handler_available:
+            logger.info("Using centralized Gemini handler with fallback support")
+        else:
+            logger.warning("Gemini handler not available, parser will use fallback methods")
             
     def load_ml_patterns(self):
         """Load machine learning patterns"""
@@ -99,17 +76,15 @@ class GeminiMRParser:
             # Build intelligent prompt
             prompt = self.build_visit_parsing_prompt(context, enhanced_text, visit_type)
             
-            # Call Gemini
-            if self.model:
-                response = await self.call_gemini(prompt)
-                if response:
-                    parsed = self.extract_structured_data(response)
-                    if parsed:
-                        # Apply ML post-processing
-                        enhanced_parsed = self.enhance_parsed_data(parsed, text, "visit")
-                        # Update ML patterns
-                        self.update_ml_patterns(enhanced_parsed, text, "visit")
-                        return enhanced_parsed
+            # Call Gemini using centralized handler
+            if self.handler_available:
+                parsed = await generate_json(prompt)
+                if parsed:
+                    # Apply ML post-processing
+                    enhanced_parsed = self.enhance_parsed_data(parsed, text, "visit")
+                    # Update ML patterns
+                    self.update_ml_patterns(enhanced_parsed, text, "visit")
+                    return enhanced_parsed
                         
             # Fallback to rule-based parsing
             return self.rule_based_visit_parsing(text, visit_type)
@@ -128,14 +103,13 @@ class GeminiMRParser:
             
             prompt = self.build_expense_parsing_prompt(context, enhanced_text)
             
-            if self.model:
-                response = await self.call_gemini(prompt)
-                if response:
-                    parsed = self.extract_structured_data(response)
-                    if parsed:
-                        enhanced_parsed = self.enhance_parsed_data(parsed, text, "expense")
-                        self.update_ml_patterns(enhanced_parsed, text, "expense")
-                        return enhanced_parsed
+            # Call Gemini using centralized handler
+            if self.handler_available:
+                parsed = await generate_json(prompt)
+                if parsed:
+                    enhanced_parsed = self.enhance_parsed_data(parsed, text, "expense")
+                    self.update_ml_patterns(enhanced_parsed, text, "expense")
+                    return enhanced_parsed
                         
             return self.rule_based_expense_parsing(text)
             
@@ -270,67 +244,7 @@ OUTPUT JSON:
 Return only JSON with business intelligence.
 """
 
-    async def call_gemini(self, prompt: str) -> Optional[str]:
-        """Call Gemini API with retry logic for rate limits"""
-        if not self.model:
-            return None
-
-        max_retries = 3
-        base_delay = 2
-
-        for attempt in range(max_retries):
-            try:
-                response = self.model.generate_content(
-                    prompt,
-                    generation_config={
-                        'temperature': 0.1,
-                        'top_p': 0.8,
-                        'max_output_tokens': 2048
-                    }
-                )
-                
-                if response.candidates and len(response.candidates) > 0:
-                    candidate = response.candidates[0]
-                    if candidate.content and candidate.content.parts:
-                        return response.text
-                
-                return None
-
-            except Exception as e:
-                error_str = str(e)
-                # Check for rate limit errors (429)
-                if "429" in error_str or "quota" in error_str.lower():
-                    if attempt < max_retries - 1:
-                        delay = base_delay * (attempt + 1)
-                        logger.warning(f"Rate limit hit. Retrying in {delay}s... (Attempt {attempt+1}/{max_retries})")
-                        await asyncio.sleep(delay)
-                        continue
-                
-                logger.error(f"Gemini API call error: {e}")
-                return None
-        
-        return None
-            
-    def extract_structured_data(self, response: str) -> Optional[Dict]:
-        """Extract JSON from Gemini response"""
-        try:
-            # Look for JSON in code blocks
-            json_match = re.search(r'```(?:json)?\s*(.*?)\s*```', response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-            else:
-                # Look for JSON object directly
-                json_match = re.search(r'\{.*\}', response, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
-                else:
-                    return None
-                    
-            return json.loads(json_str)
-            
-        except Exception as e:
-            logger.error(f"JSON extraction error: {e}")
-            return None
+    # NOTE: call_gemini and extract_structured_data removed - now using centralized gemini_handler
             
     def enhance_parsed_data(self, data: Dict, original_text: str, data_type: str) -> Dict:
         """Enhance parsed data with ML insights"""

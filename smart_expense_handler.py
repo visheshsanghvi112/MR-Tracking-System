@@ -1,12 +1,18 @@
 """
 Smart Expense Handler - Multiple Input Methods
 Handles both quick expense dumps and detailed categorization
+Now uses centralized gemini_handler for robust fallback
 """
 import re
 import json
 from typing import Dict, List, Any
-import google.generativeai as genai
-import config
+
+# Import centralized Gemini handler
+try:
+    from gemini_handler import gemini, generate, generate_json
+    GEMINI_HANDLER_AVAILABLE = True
+except ImportError:
+    GEMINI_HANDLER_AVAILABLE = False
 
 class SmartExpenseHandler:
     """Smart expense parsing and handling"""
@@ -23,17 +29,11 @@ class SmartExpenseHandler:
             'medical': ['medicine', 'doctor', 'hospital', 'clinic'],
             'other': ['other', 'misc', 'miscellaneous']
         }
-        
-        # Initialize Gemini for smart parsing
-        if config.GEMINI_API_KEYS and config.GEMINI_API_KEYS[0]:
-            genai.configure(api_key=config.GEMINI_API_KEYS[0])
-            self.ai_model = genai.GenerativeModel('gemini-2.0-flash')
-        else:
-            self.ai_model = None
+        self.handler_available = GEMINI_HANDLER_AVAILABLE
     
     async def parse_bulk_expense(self, expense_text: str, date: str = None) -> Dict[str, Any]:
         """Parse bulk expense text using AI"""
-        if not self.ai_model:
+        if not self.handler_available:
             return self._parse_expense_manual(expense_text)
         
         prompt = f"""You are an expert expense parser for Medical Representatives. Parse this expense entry and categorize it properly.
@@ -80,20 +80,12 @@ Rules:
 Parse the expenses now:"""
 
         try:
-            import asyncio
-            # Run the synchronous API call in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, self.ai_model.generate_content, prompt)
-            if response.text:
-                # Clean JSON response
-                response_text = response.text.strip()
-                if '```json' in response_text:
-                    response_text = response_text.split('```json')[1].split('```')[0].strip()
-                elif '```' in response_text:
-                    response_text = response_text.split('```')[1].strip()
-                
-                parsed_data = json.loads(response_text)
+            # Use centralized Gemini handler
+            parsed_data = await generate_json(prompt)
+            if parsed_data:
                 return parsed_data
+            else:
+                return self._parse_expense_manual(expense_text)
         except Exception as e:
             print(f"AI parsing failed: {e}")
             return self._parse_expense_manual(expense_text)
