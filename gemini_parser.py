@@ -47,8 +47,9 @@ class GeminiMRParser:
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=self.api_key)
-                    self.model = genai.GenerativeModel('gemini-2.5-flash')
-                    logger.info("Gemini initialized successfully")
+                    # Use gemini-2.0-flash which is available and working
+                    self.model = genai.GenerativeModel('gemini-2.0-flash')
+                    logger.info("Gemini initialized successfully with gemini-2.0-flash")
                 except ImportError:
                     logger.warning("google-generativeai package not installed")
                     self.model = None
@@ -270,35 +271,45 @@ Return only JSON with business intelligence.
 """
 
     async def call_gemini(self, prompt: str) -> Optional[str]:
-        """Call Gemini API with error handling"""
-        try:
-            if not self.model:
-                return None
-                
-            response = self.model.generate_content(
-                prompt,
-                generation_config={
-                    'temperature': 0.1,
-                    'top_p': 0.8,
-                    'max_output_tokens': 2048
-                }
-            )
-            
-            # Handle response safely
-            if response.candidates and len(response.candidates) > 0:
-                candidate = response.candidates[0]
-                if candidate.content and candidate.content.parts:
-                    return response.text
-                else:
-                    logger.warning(f"Gemini response has no content parts. Finish reason: {candidate.finish_reason}")
-                    return None
-            else:
-                logger.warning("Gemini response has no candidates")
-                return None
-            
-        except Exception as e:
-            logger.error(f"Gemini API call error: {e}")
+        """Call Gemini API with retry logic for rate limits"""
+        if not self.model:
             return None
+
+        max_retries = 3
+        base_delay = 2
+
+        for attempt in range(max_retries):
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config={
+                        'temperature': 0.1,
+                        'top_p': 0.8,
+                        'max_output_tokens': 2048
+                    }
+                )
+                
+                if response.candidates and len(response.candidates) > 0:
+                    candidate = response.candidates[0]
+                    if candidate.content and candidate.content.parts:
+                        return response.text
+                
+                return None
+
+            except Exception as e:
+                error_str = str(e)
+                # Check for rate limit errors (429)
+                if "429" in error_str or "quota" in error_str.lower():
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (attempt + 1)
+                        logger.warning(f"Rate limit hit. Retrying in {delay}s... (Attempt {attempt+1}/{max_retries})")
+                        await asyncio.sleep(delay)
+                        continue
+                
+                logger.error(f"Gemini API call error: {e}")
+                return None
+        
+        return None
             
     def extract_structured_data(self, response: str) -> Optional[Dict]:
         """Extract JSON from Gemini response"""

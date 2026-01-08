@@ -27,7 +27,7 @@ class SmartExpenseHandler:
         # Initialize Gemini for smart parsing
         if config.GEMINI_API_KEYS and config.GEMINI_API_KEYS[0]:
             genai.configure(api_key=config.GEMINI_API_KEYS[0])
-            self.ai_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            self.ai_model = genai.GenerativeModel('gemini-2.0-flash')
         else:
             self.ai_model = None
     
