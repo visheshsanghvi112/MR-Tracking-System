@@ -205,7 +205,7 @@ async def health_check():
 
 
 @app.get("/api/health/detailed")
-async def detailed_health_check():
+async def detailed_health_check(api_key: str = Depends(verify_api_key)):
     """Comprehensive health check with component status - for monitoring systems"""
     try:
         health_status = await get_full_health_status()
