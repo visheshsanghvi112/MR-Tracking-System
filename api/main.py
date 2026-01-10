@@ -470,40 +470,40 @@ async def download_selfie(file_id: str, key: Optional[str] = None):
 if os.getenv("ENVIRONMENT") != "production":
     @app.get("/api/debug/sheets")
     async def debug_sheets(api_key: str = Depends(verify_api_key)):
-    """Return high-level info about connected Google Sheet and tabs.
+        """Return high-level info about connected Google Sheet and tabs.
 
-    Helps verify Vercel credentials, spreadsheet id, worksheet names, row counts,
-    and which sheet is currently selected as the main daily log.
-    """
-    try:
-        info = {
-            "spreadsheet_id": getattr(sheets_manager, 'spreadsheet_id', None),
-            "using_env_json": getattr(sheets_manager, 'using_env_json', False),
-            "main_sheet": getattr(getattr(sheets_manager, 'main_sheet', None), 'title', None),
-            "sheets": []
-        }
-
+        Helps verify Vercel credentials, spreadsheet id, worksheet names, row counts,
+        and which sheet is currently selected as the main daily log.
+        """
         try:
-            worksheets = sheets_manager.spreadsheet.worksheets() if getattr(sheets_manager, 'spreadsheet', None) else []
-            for ws in worksheets:
-                try:
-                    values = ws.get_all_values()
-                    headers = values[0] if values else []
-                    info["sheets"].append({
-                        "title": ws.title,
-                        "rows": max(0, len(values) - 1) if values else 0,
-                        "headers": headers,
-                        "has_mr_headers": bool(headers) and ("MR_ID" in headers and "Date" in headers)
-                    })
-                except Exception as e:
-                    info["sheets"].append({"title": ws.title, "error": str(e)})
-        except Exception as e:
-            info["error"] = f"Failed to enumerate worksheets: {e}"
+            info = {
+                "spreadsheet_id": getattr(sheets_manager, 'spreadsheet_id', None),
+                "using_env_json": getattr(sheets_manager, 'using_env_json', False),
+                "main_sheet": getattr(getattr(sheets_manager, 'main_sheet', None), 'title', None),
+                "sheets": []
+            }
 
-        return {"success": True, "data": info}
-    except Exception as e:
-        logger.error(f"debug_sheets error: {e}")
-        raise HTTPException(status_code=500, detail="debug failed")
+            try:
+                worksheets = sheets_manager.spreadsheet.worksheets() if getattr(sheets_manager, 'spreadsheet', None) else []
+                for ws in worksheets:
+                    try:
+                        values = ws.get_all_values()
+                        headers = values[0] if values else []
+                        info["sheets"].append({
+                            "title": ws.title,
+                            "rows": max(0, len(values) - 1) if values else 0,
+                            "headers": headers,
+                            "has_mr_headers": bool(headers) and ("MR_ID" in headers and "Date" in headers)
+                        })
+                    except Exception as e:
+                        info["sheets"].append({"title": ws.title, "error": str(e)})
+            except Exception as e:
+                info["error"] = f"Failed to enumerate worksheets: {e}"
+
+            return {"success": True, "data": info}
+        except Exception as e:
+            logger.error(f"debug_sheets error: {e}")
+            raise HTTPException(status_code=500, detail="debug failed")
 
 # ============= ANALYTICS =============
 
@@ -681,31 +681,31 @@ if os.getenv("ENVIRONMENT") != "production":
     @app.get("/api/debug/route-scan")
     async def debug_route_scan(mr_id: int, date: str, api_key: str = Depends(verify_api_key)):
         """Debug endpoint: show counts and sample records for an MR and date from Sheets."""
-    try:
-        data = sheets_manager.get_mr_route_data(str(mr_id), date)
-        # Also summarize date distribution for this MR and show first raw record for the date
-        summary = {}
-        raw_sample = None
         try:
-            records = sheets_manager.main_sheet.get_all_records()
-            for r in records:
-                if str(r.get('MR_ID')) == str(mr_id):
-                    d = r.get('Date', '')
-                    summary[d] = summary.get(d, 0) + 1
-                    if raw_sample is None and d == date:
-                        raw_sample = r
-        except Exception:
-            pass
-        return {
-            "success": True,
-            "count": len(data or []),
-            "sample": data[0] if data else None,
-            "date_summary": summary,
-            "raw_sample": raw_sample
-        }
-    except Exception as e:
-        logger.error(f"debug_route_scan error: {e}")
-        raise HTTPException(status_code=500, detail="scan failed")
+            data = sheets_manager.get_mr_route_data(str(mr_id), date)
+            # Also summarize date distribution for this MR and show first raw record for the date
+            summary = {}
+            raw_sample = None
+            try:
+                records = sheets_manager.main_sheet.get_all_records()
+                for r in records:
+                    if str(r.get('MR_ID')) == str(mr_id):
+                        d = r.get('Date', '')
+                        summary[d] = summary.get(d, 0) + 1
+                        if raw_sample is None and d == date:
+                            raw_sample = r
+            except Exception:
+                pass
+            return {
+                "success": True,
+                "count": len(data or []),
+                "sample": data[0] if data else None,
+                "date_summary": summary,
+                "raw_sample": raw_sample
+            }
+        except Exception as e:
+            logger.error(f"debug_route_scan error: {e}")
+            raise HTTPException(status_code=500, detail="scan failed")
 
 async def get_enhanced_route_data(mr_id: int, date: str) -> List[dict]:
     """Get enhanced route data combining sheets and live tracking"""
