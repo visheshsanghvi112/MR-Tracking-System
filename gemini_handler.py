@@ -18,6 +18,12 @@ import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 
+try:
+    from production import RequestContext
+    _has_context = True
+except ImportError:
+    _has_context = False
+
 logger = logging.getLogger(__name__)
 
 # Available Gemini models in order of preference (updated Jan 2026)

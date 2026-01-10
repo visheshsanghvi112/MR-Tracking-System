@@ -22,15 +22,25 @@ from session_manager import session_manager
 from mr_commands import commands_handler
 import config
 
-# Set up enhanced business logging with UTF-8 encoding
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=getattr(logging, config.LOG_LEVEL),
-    handlers=[
-        logging.FileHandler(config.LOG_FILE, encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# Set up production-grade logging
+try:
+    from production import setup_production_logging, RequestContext
+    setup_production_logging(
+        json_format=(os.getenv('ENVIRONMENT') == 'production'),
+        level=config.LOG_LEVEL
+    )
+    _has_context = True
+except ImportError:
+    # Fallback to basic logging
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=getattr(logging, config.LOG_LEVEL),
+        handlers=[
+            logging.FileHandler(config.LOG_FILE, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    _has_context = False
 
 # Reduce noise from external libraries
 logging.getLogger('httpx').setLevel(logging.WARNING)

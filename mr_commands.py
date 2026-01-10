@@ -322,7 +322,15 @@ class MRCommandsHandler:
         )
         
         if success:
-            # Log location capture with user data
+            # Log location capture with structured context
+            log_extra = {
+                'mr_id': str(user_id),
+                'lat': location.latitude,
+                'lng': location.longitude,
+                'address': address[:50] if address else 'Unknown'
+            }
+            logger.info("Location captured", extra=log_extra)
+            
             user_data = {
                 'first_name': update.effective_user.first_name,
                 'last_name': update.effective_user.last_name,
@@ -411,8 +419,13 @@ class MRCommandsHandler:
         text = update.message.text
         visit_type = context.user_data.get('visit_type', 'General Visit')
         
-        logger.info(f"VISIT_ENTRY: User {user_id} ({update.effective_user.first_name}) logging {visit_type}")
-        logger.info(f"RAW_INPUT: {text}")
+        # Structured logging with context
+        log_extra = {
+            'mr_id': str(user_id),
+            'visit_type': visit_type,
+            'text_length': len(text)
+        }
+        logger.info("Processing visit entry", extra=log_extra)
         
         # Parse entry (basic parsing, can be enhanced with Gemini later)
         parts = text.split('|')

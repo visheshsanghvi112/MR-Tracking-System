@@ -79,7 +79,8 @@ try:
     from production import (
         setup_production_logging, init_sentry, 
         get_full_health_status, CircuitBreaker,
-        RequestContext, capture_exception
+        RequestContext, capture_exception,
+        with_correlation_id
     )
     
     # Setup production logging (JSON in prod, readable in dev)
@@ -228,8 +229,11 @@ async def detailed_health_check():
 # ============= MR MANAGEMENT =============
 
 @app.get("/api/mrs")
+@with_correlation_id
 async def get_mrs(api_key: str = Depends(verify_api_key)):
     """Get all Medical Representatives with real Google Sheets data"""
+    correlation_id = RequestContext.get_correlation_id()
+    logger.info("Fetching MRs", extra={'correlation_id': correlation_id})
     try:
         mrs_data = sheets_manager.get_all_mrs()
         
