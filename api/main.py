@@ -96,6 +96,24 @@ try:
 except ImportError as e:
     print(f"[WARN] Production utilities not available: {e}")
     logging.basicConfig(level=logging.INFO)
+    
+    # Fallback implementations for Vercel serverless
+    class RequestContext:
+        @staticmethod
+        def get_correlation_id():
+            return None
+    
+    def with_correlation_id(func):
+        """Fallback decorator when production utilities unavailable"""
+        return func
+    
+    async def get_full_health_status():
+        """Fallback health check"""
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "components": {}
+        }
 
 logger = logging.getLogger(__name__)
 
