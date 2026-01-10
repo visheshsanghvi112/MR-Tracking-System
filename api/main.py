@@ -106,15 +106,21 @@ app = FastAPI(
 )
 
 # CORS configuration
+# Only allow requests from known domains
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://localhost:5173",
+    "https://mr-tracking.vercel.app",
+]
+
+# In development, allow all origins
+if os.getenv("ENVIRONMENT") != "production":
+    allowed_origins.append("*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "http://localhost:5173",
-        "https://*.vercel.app",
-        "*"  # Allow all for development
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
@@ -142,9 +148,17 @@ def clean_mr_name(name: str) -> str:
 # Simple API key authentication
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     """Simple API key verification"""
-    expected_key = os.getenv("API_KEY", "mr-tracking-2025")
-    if x_api_key != expected_key:
+    expected_key = os.getenv("API_KEY")
+    
+    # Ensure API key is configured
+    if not expected_key:
+        logger.error("API_KEY environment variable not configured")
+        raise HTTPException(status_code=500, detail="API authentication not configured")
+    
+    if not x_api_key or x_api_key != expected_key:
+        logger.warning(f"Invalid API key attempt from client")
         raise HTTPException(status_code=401, detail="Invalid API key")
+    
     return x_api_key
 
 # ============= BASIC ENDPOINTS =============
@@ -451,9 +465,11 @@ async def download_selfie(file_id: str, key: Optional[str] = None):
         raise HTTPException(status_code=500, detail="Selfie download failed")
 
 # ============= DEBUG: SHEETS INSPECTION =============
+# Only available in non-production environments
 
-@app.get("/api/debug/sheets")
-async def debug_sheets(api_key: str = Depends(verify_api_key)):
+if os.getenv("ENVIRONMENT") != "production":
+    @app.get("/api/debug/sheets")
+    async def debug_sheets(api_key: str = Depends(verify_api_key)):
     """Return high-level info about connected Google Sheet and tabs.
 
     Helps verify Vercel credentials, spreadsheet id, worksheet names, row counts,
@@ -661,9 +677,10 @@ async def get_route_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get route data: {str(e)}")
 
-@app.get("/api/debug/route-scan")
-async def debug_route_scan(mr_id: int, date: str, api_key: str = Depends(verify_api_key)):
-    """Debug endpoint: show counts and sample records for an MR and date from Sheets."""
+if os.getenv("ENVIRONMENT") != "production":
+    @app.get("/api/debug/route-scan")
+    async def debug_route_scan(mr_id: int, date: str, api_key: str = Depends(verify_api_key)):
+        """Debug endpoint: show counts and sample records for an MR and date from Sheets."""
     try:
         data = sheets_manager.get_mr_route_data(str(mr_id), date)
         # Also summarize date distribution for this MR and show first raw record for the date
