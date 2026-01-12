@@ -168,6 +168,12 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
     """Simple API key verification"""
     expected_key = os.getenv("API_KEY")
     
+    # DEBUG: Log what we're comparing
+    logger.info(f"[AUTH DEBUG] Expected key exists: {bool(expected_key)}, Received key exists: {bool(x_api_key)}")
+    if expected_key and x_api_key:
+        logger.info(f"[AUTH DEBUG] Expected length: {len(expected_key)}, Received length: {len(x_api_key)}")
+        logger.info(f"[AUTH DEBUG] Match: {x_api_key == expected_key}")
+    
     # Ensure API key is configured
     if not expected_key:
         logger.error("API_KEY environment variable not configured")
