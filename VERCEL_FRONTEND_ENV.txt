@@ -1,0 +1,44 @@
+##############################################
+# VERCEL FRONTEND ENVIRONMENT VARIABLES
+# Project: mr-tracking
+##############################################
+# Copy each variable below and add to Vercel Dashboard:
+# 1. Go to: https://vercel.com → mr-tracking → Settings → Environment Variables
+# 2. Click "Add New" for each variable
+# 3. Paste Key and Value exactly as shown
+# 4. Select: Production, Preview, Development (all 3)
+# 5. Toggle "Sensitive" ON for API key
+##############################################
+
+# ============ REQUIRED VARIABLES ============
+
+# 1. Backend API URL (points to your deployed backend)
+VITE_API_URL=https://mr-bot.vercel.app
+
+# 2. Frontend API Key (must match backend API_KEY)
+# IMPORTANT: Mark as "Sensitive" in Vercel
+VITE_API_KEY=mr-tracking-2025
+
+
+# ============ OPTIONAL VARIABLES (already configured) ============
+
+# These should already be in your frontend .env locally:
+# VITE_CURRENCY_SYMBOL=₹
+# VITE_COMPANY_NAME=Mumbai MR Tracking
+# VITE_DEFAULT_TERRITORY=Mumbai
+# NODE_ENV=development
+
+# Google Maps API (not needed - using OpenStreetMap):
+# VITE_GOOGLE_MAPS_API_KEY=<not required>
+
+
+##############################################
+# QUICK CHECKLIST:
+##############################################
+# ✓ VITE_API_URL → Copy value above (backend URL)
+# ✓ VITE_API_KEY → Copy value, mark Sensitive
+# ✓ Select all 3 environments for each
+# ✓ Click Save
+# ✓ Wait 2-3 minutes for auto-redeploy
+# ✓ Visit: https://mr-tracking.vercel.app
+# ✓ Check browser console: Should see "✅ Loaded MRs with real GPS data: Array(6)"

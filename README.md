@@ -5,7 +5,13 @@
 [![Live Demo](https://img.shields.io/badge/🌐_Live-mr--tracking.vercel.app-blue)](https://mr-tracking.vercel.app/)
 [![API Status](https://img.shields.io/badge/⚡_API-mr--bot.vercel.app-green)](https://mr-bot.vercel.app/)
 [![Version](https://img.shields.io/badge/Version-2.1.0-brightgreen)](https://github.com/visheshsanghvi112/MR-Tracking-System)
-[![Production Ready](https://img.shields.io/badge/Status-Production_Ready-success)](https://github.com/visheshsanghvi112/MR-Tracking-System)
+[![Production Ready](https://img.shields.io/badge/Status-Live_on_Vercel-success)](https://mr-tracking.vercel.app/)
+
+## 🎯 **Live Deployment**
+
+**🌐 Frontend Dashboard:** https://mr-tracking.vercel.app  
+**⚡ Backend API:** https://mr-bot.vercel.app  
+**📊 Status:** ✅ 6 MRs tracked with 100+ location records
 
 ---
 
@@ -293,13 +299,32 @@ AI analyzes historical routes and suggests optimal paths for next day's visits
 
 ### Vercel Deployment (Recommended)
 
-**Backend (API):**
+**Backend (mr-bot project):**
 1. Push to GitHub: `git push origin main`
 2. Vercel auto-deploys on commit (connected via GitHub integration)
-3. Set environment variables in Vercel dashboard
-4. Root Directory: *(empty)* - deploys from repo root
-5. Build Command: *(auto-detected)*
-6. Output Directory: *(auto-detected)*
+3. Set environment variables in Vercel dashboard:
+   ```
+   MR_SPREADSHEET_ID=1R-HToQJsMOygvBulPoWS4ihwFHhDXynv4cgq85TuTHg
+   GOOGLE_SHEETS_CREDENTIALS_JSON={"type":"service_account",...}  # Full JSON
+   API_KEY=mr-tracking-2025  # Mark as Sensitive
+   ```
+4. Share Google Sheet with: `mr-bot-service@pharmagiftapp.iam.gserviceaccount.com`
+5. Wait 2-3 minutes for deployment
+6. Verify: `https://mr-bot.vercel.app/api/mrs` (should return 6 MRs)
+
+**Frontend (mr-tracking project):**
+1. Set environment variables in Vercel dashboard:
+   ```
+   VITE_API_URL=https://mr-bot.vercel.app
+   VITE_API_KEY=mr-tracking-2025  # Mark as Sensitive
+   ```
+2. Vercel auto-deploys on commit
+3. Wait 2-3 minutes for deployment
+4. Visit: `https://mr-tracking.vercel.app` (should display 6 MRs)
+
+**Root Directory:** *(empty)* - deploys from repo root  
+**Build Command:** *(auto-detected)*  
+**Output Directory:** *(auto-detected)*
 
 **Frontend:**6 Vishesh Sanghvi
 
@@ -436,7 +461,7 @@ Total: 13,352 lines across 31 files
 
 ---
 
-**Version:** 2.1.0 | **Last Updated:** January 10, 2026 | **Status:** 🟢 Production Ready
+**Version:** 2.1.0 | **Last Updated:** January 12, 2026 | **Status:** 🟢 Live on Vercel
 
 ### CI/CD Pipeline
 
