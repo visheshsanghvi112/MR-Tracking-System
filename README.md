@@ -93,8 +93,8 @@
 
 ## 📱 Live System Stats
 
-- **6 Active MRs** tracking daily across Mumbai
-- **132+ Daily Visits** logged with GPS coordinates
+- **6 Active MRs** - Vishesh Sanghvi, RAVI MAURYA, MR_12345, Rajendrra Rao, office test, Gourav Tandon
+- **100+ Location Records** logged with GPS coordinates (Mumbai area)
 - **Real-time Updates** via WebSocket every 5 seconds
 - **99.9% Uptime** on Vercel edge infrastructure
 - **< 500ms API Response** time (average, production)
@@ -132,18 +132,22 @@ npm run dev
 ```
 # Core Configuration
 MR_BOT_TOKEN=your_telegram_bot_token
-API_KEY=your_secure_api_key_here  # REQUIRED: No default for security
+ADMIN_ID=your_telegram_user_id
 
 # Google Services
+MR_SPREADSHEET_ID=1R-HToQJsMOygvBulPoWS4ihwFHhDXynv4cgq85TuTHg
 GOOGLE_SHEETS_CREDENTIALS=pharmagiftapp-60fb5a6a3ca9.json
-MR_SPREADSHEET_ID=your_spreadsheet_id_here
-SELFIE_DRIVE_FOLDER_ID=your_drive_folder_id
+SELFIE_DRIVE_FOLDER_ID=1VvYcqCFGAXfwphBRgAL0XUFt2Ql7wCiV
 DRIVE_OAUTH_TOKEN_FILE=token.json
+DRIVE_OAUTH_ENABLED=true
 
 # Gemini AI (Multi-key rotation)
-GEMINI_API_KEY=primary_gemini_api_key
-GEMINI_API_KEY_2=backup_gemini_api_key_2
-GEMINI_API_KEY_3=backup_gemini_api_key_3
+GEMINI_API_KEY=AIzaSyDCGLok37DxXF0DOV67Gw8k_PEHu2XZXSw
+GEMINI_API_KEY_2=AIzaSyClCzfns88bsLSmis4bMS6uTvmSnLmHByg
+GEMINI_API_KEY_3=AIzaSyBGoWLhFiovm5VQ4YsrD6IA_ZrMadkcWsg
+
+# API Configuration (api/.env only)
+API_KEY=mr-tracking-2025  # REQUIRED for backend
 
 # Production Settings
 ENVIRONMENT=production  # or 'development' for debug endpoints
@@ -305,10 +309,13 @@ AI analyzes historical routes and suggests optimal paths for next day's visits
 3. Set environment variables in Vercel dashboard:
    ```
    MR_SPREADSHEET_ID=1R-HToQJsMOygvBulPoWS4ihwFHhDXynv4cgq85TuTHg
-   GOOGLE_SHEETS_CREDENTIALS_JSON={"type":"service_account",...}  # Full JSON
+   GOOGLE_SHEETS_CREDENTIALS_JSON={"type":"service_account","project_id":"pharmagiftapp",...}  # Full JSON from pharmagiftapp-60fb5a6a3ca9.json
    API_KEY=mr-tracking-2025  # Mark as Sensitive
+   GEMINI_API_KEY=AIzaSyDCGLok37DxXF0DOV67Gw8k_PEHu2XZXSw
+   GEMINI_API_KEY_2=AIzaSyClCzfns88bsLSmis4bMS6uTvmSnLmHByg
+   GEMINI_API_KEY_3=AIzaSyBGoWLhFiovm5VQ4YsrD6IA_ZrMadkcWsg
    ```
-4. Share Google Sheet with: `mr-bot-service@pharmagiftapp.iam.gserviceaccount.com`
+4. Share Google Sheet (ID: 1R-HToQJsMOygvBulPoWS4ihwFHhDXynv4cgq85TuTHg) with: `mr-bot-service@pharmagiftapp.iam.gserviceaccount.com` as Editor
 5. Wait 2-3 minutes for deployment
 6. Verify: `https://mr-bot.vercel.app/api/mrs` (should return 6 MRs)
 
@@ -461,7 +468,7 @@ Total: 13,352 lines across 31 files
 
 ---
 
-**Version:** 2.1.0 | **Last Updated:** January 12, 2026 | **Status:** 🟢 Live on Vercel
+**Version:** 2.1.0 | **Last Updated:** January 21, 2026 | **Status:** 🟢 Live on Vercel
 
 ### CI/CD Pipeline
 
@@ -538,14 +545,12 @@ This is a production system for pharmaceutical field force management. For inqui
 
 ## 📈 Scalability
 
-| Metric | Current | Max Capacity |
-|--------|---------|--------------|
-| MRs | 6 | 500+ |
-| Daily Visits | 132 | 10,000+ |
-| Concurrent Users | ~10 | 1,000+ |
-| Data Storage | Google Sheets | Unlimited* |
-
-*Google Sheets: 10M cells per spreadsheet
+| Metric | Current | Max Capacity | Notes |
+|--------|---------|--------------|-------|
+| MRs | 6 | 500+ | Currently: Vishesh, RAVI, MR_12345, Rajendrra, office test, Gourav |
+| Location Records | 100+ | 1M+ | Real GPS data from Mumbai area |
+| Concurrent Users | ~10 | 1,000+ | Vercel Edge auto-scales |
+| Data Storage | Google Sheets | 10M cells | Sheet ID: 1R-HToQJsMOygvBulPoWS4ihwFHhDXynv4cgq85TuTHg |
 
 ---
 
@@ -571,7 +576,7 @@ This is a production system for pharmaceutical field force management. For inqui
 
 ## 📜 License
 
-Proprietary - All rights reserved © 2025
+Proprietary - All rights reserved © 2026
 
 ---
 
