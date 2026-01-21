@@ -142,12 +142,12 @@ DRIVE_OAUTH_TOKEN_FILE=token.json
 DRIVE_OAUTH_ENABLED=true
 
 # Gemini AI (Multi-key rotation)
-GEMINI_API_KEY=AIzaSyDCGLok37DxXF0DOV67Gw8k_PEHu2XZXSw
-GEMINI_API_KEY_2=AIzaSyClCzfns88bsLSmis4bMS6uTvmSnLmHByg
-GEMINI_API_KEY_3=AIzaSyBGoWLhFiovm5VQ4YsrD6IA_ZrMadkcWsg
+GEMINI_API_KEY=your_primary_gemini_api_key
+GEMINI_API_KEY_2=your_backup_gemini_api_key_2
+GEMINI_API_KEY_3=your_backup_gemini_api_key_3
 
 # API Configuration (api/.env only)
-API_KEY=mr-tracking-2025  # REQUIRED for backend
+API_KEY=your_secure_api_key  # REQUIRED for backend
 
 # Production Settings
 ENVIRONMENT=production  # or 'development' for debug endpoints
@@ -309,11 +309,11 @@ AI analyzes historical routes and suggests optimal paths for next day's visits
 3. Set environment variables in Vercel dashboard:
    ```
    MR_SPREADSHEET_ID=1R-HToQJsMOygvBulPoWS4ihwFHhDXynv4cgq85TuTHg
-   GOOGLE_SHEETS_CREDENTIALS_JSON={"type":"service_account","project_id":"pharmagiftapp",...}  # Full JSON from pharmagiftapp-60fb5a6a3ca9.json
-   API_KEY=mr-tracking-2025  # Mark as Sensitive
-   GEMINI_API_KEY=AIzaSyDCGLok37DxXF0DOV67Gw8k_PEHu2XZXSw
-   GEMINI_API_KEY_2=AIzaSyClCzfns88bsLSmis4bMS6uTvmSnLmHByg
-   GEMINI_API_KEY_3=AIzaSyBGoWLhFiovm5VQ4YsrD6IA_ZrMadkcWsg
+   GOOGLE_SHEETS_CREDENTIALS_JSON={"type":"service_account","project_id":"pharmagiftapp",...}  # Full JSON from service account file
+   API_KEY=your_secure_api_key  # Mark as Sensitive
+   GEMINI_API_KEY=your_primary_gemini_key
+   GEMINI_API_KEY_2=your_backup_gemini_key_2
+   GEMINI_API_KEY_3=your_backup_gemini_key_3
    ```
 4. Share Google Sheet (ID: 1R-HToQJsMOygvBulPoWS4ihwFHhDXynv4cgq85TuTHg) with: `mr-bot-service@pharmagiftapp.iam.gserviceaccount.com` as Editor
 5. Wait 2-3 minutes for deployment
