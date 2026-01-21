@@ -142,42 +142,45 @@ jobs:
   # ============================================================
   # DEPLOY TO VERCEL (only on main branch push)
   # ============================================================
-  deploy-backend:
-    name: Deploy Backend to Vercel
-    needs: [backend-lint-test, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  # NOTE: Vercel auto-deploys via GitHub integration, so manual deploy steps are disabled
+  # To enable: Set VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID_BACKEND, VERCEL_PROJECT_ID_FRONTEND secrets
+  
+  # deploy-backend:
+  #   name: Deploy Backend to Vercel
+  #   needs: [backend-lint-test, security-scan]
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Deploy to Vercel
+  #       uses: amondnet/vercel-action@v25
+  #       with:
+  #         vercel-token: ${{ secrets.VERCEL_TOKEN }}
+  #         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+  #         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND }}
+  #         vercel-args: '--prod'
 
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND }}
-          vercel-args: '--prod'
-
-  deploy-frontend:
-    name: Deploy Frontend to Vercel
-    needs: [frontend-lint-build, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
-          working-directory: frontend
-          vercel-args: '--prod'
+  # deploy-frontend:
+  #   name: Deploy Frontend to Vercel
+  #   needs: [frontend-lint-build, security-scan]
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Deploy to Vercel
+  #       uses: amondnet/vercel-action@v25
+  #       with:
+  #         vercel-token: ${{ secrets.VERCEL_TOKEN }}
+  #         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+  #         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
+  #         working-directory: frontend
+  #         vercel-args: '--prod'
 
   # ============================================================
   # NOTIFY ON FAILURE
@@ -195,3 +198,5 @@ jobs:
           echo "Branch: ${{ github.ref }}"
           echo "Commit: ${{ github.sha }}"
           echo "Check the Actions tab for details."
+          echo ""
+          echo "Note: Vercel deploys automatically via GitHub integration"
